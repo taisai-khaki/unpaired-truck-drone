@@ -1,0 +1,4 @@
+instance_id,scenario_id,n,method_name,feasible,cpu_time_seconds,error
+S0055_R01,S0055,100,truck_only,False,0.6526007652,
+S0055_R01,S0055,100,nils,True,43.4047555923,
+S0055_R01,S0055,100,feasibility_aware_alns,True,12.3455286026,

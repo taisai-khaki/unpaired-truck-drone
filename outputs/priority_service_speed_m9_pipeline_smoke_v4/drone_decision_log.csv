@@ -1,0 +1,11 @@
+instance_id,seed,method,iteration,move_type,customer_id,priority_class,action,from_mode,to_mode,launch_node,recovery_node,recovery_type,sync_truck_id,delta_Z,delta_priority_tardiness_cost,delta_high_priority_tardiness,delta_max_high_priority_tardiness,delta_truck_cost,delta_drone_cost,delta_sync_wait,battery_slack_after_move,accepted,rejection_reason
+S0028_R01,2802027,M9 NILS-R,1,truck_to_drone,47,high,admit_drone,truck,drone,0,0,depot,,-305745.0678891887,-305657.7024848835,-1265.2068732981,-197.8562049584,-95.9872132607,8.6218089556,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,2,truck_to_drone,2,high,admit_drone,truck,drone,0,0,depot,,-8922.2199125446,-8922.2479577131,-43.4660570144,-1.9086379570,-0.6161987726,0.6442439411,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,3,truck_to_drone,21,high,admit_drone,truck,drone,0,0,depot,,-6046.8461190337,-6047.3447290579,-27.9174302233,-3.9104957911,-1.1950861255,1.6936961497,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,5,truck_to_drone,27,high,admit_drone,truck,drone,0,0,depot,,-3442.1195548734,-3442.2614804633,-16.8901528253,-0.8028864426,0.0000000000,0.1419255898,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,6,truck_to_drone,20,medium,admit_drone,truck,drone,0,0,depot,,-2400.2725290051,-2399.6010036836,-10.8136556554,-2.9608734075,-0.6928996590,0.0213743375,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,7,truck_to_drone,30,low,admit_drone,truck,drone,0,0,depot,,-1239.7180135177,-1239.8074524391,-5.7420228149,-1.1425361182,-0.1129688554,0.2024077768,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,8,truck_to_drone,15,low,admit_drone,truck,drone,0,0,depot,,-2380.9297298859,-2411.9250128368,-10.9747957475,-2.7120732918,30.2505179187,0.7447650322,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,9,truck_to_drone,33,low,admit_drone,truck,drone,0,0,depot,,-1102.0282553119,-1101.7104597242,-5.0080586622,-1.2512340909,0.0000000000,-0.3177955877,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,10,truck_to_drone,25,low,admit_drone,truck,drone,0,0,depot,,-868.3831162539,-868.5133703720,-3.8316766340,-1.2772255447,-0.0893423296,0.2195964476,0.0000000000,,True,
+S0028_R01,2802027,M9 NILS-R,11,truck_to_drone,39,medium,admit_drone,truck,drone,0,0,depot,,-519.1635133683,-519.5360572982,-2.1647335721,-1.0823667860,-0.2301590883,0.6027030182,0.0000000000,,True,

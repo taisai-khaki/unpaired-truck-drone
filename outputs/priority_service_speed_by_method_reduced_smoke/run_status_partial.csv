@@ -1,0 +1,6 @@
+instance_id,scenario_id,n,method_name,feasible,cpu_time_seconds,error
+S0001_R01,S0001,15,truck_only,True,0.0044848919,
+S0001_R01,S0001,15,paired_baseline,True,0.4415597916,
+S0001_R01,S0001,15,no_unpairing,True,0.7245321274,
+S0001_R01,S0001,15,nils,True,0.3168585300,
+S0001_R01,S0001,15,feasibility_aware_alns,True,4.2265222073,

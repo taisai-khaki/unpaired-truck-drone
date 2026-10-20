@@ -1,0 +1,9 @@
+instance_id,scenario_id,n,method_name,feasible,cpu_time_seconds,error
+S0001_R01,S0001,15,truck_only,True,0.0070142746,
+S0001_R01,S0001,15,simple_drone,True,0.1457173824,
+S0001_R01,S0001,15,paired_baseline,True,0.7555038929,
+S0001_R01,S0001,15,no_unpairing,True,0.8335394859,
+S0001_R01,S0001,15,nils,True,0.2670273781,
+S0001_R01,S0001,15,nils_no_local_search,True,0.2135369778,
+S0001_R01,S0001,15,nils_no_perturbation,True,0.0374352932,
+S0001_R01,S0001,15,feasibility_aware_alns,True,3.4323825836,

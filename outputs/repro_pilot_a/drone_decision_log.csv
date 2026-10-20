@@ -1,0 +1,3 @@
+instance_id,seed,method,iteration,move_type,customer_id,priority_class,action,from_mode,to_mode,launch_node,recovery_node,recovery_type,sync_truck_id,delta_Z,delta_priority_tardiness_cost,delta_high_priority_tardiness,delta_max_high_priority_tardiness,delta_truck_cost,delta_drone_cost,delta_sync_wait,battery_slack_after_move,accepted,rejection_reason
+S0001_R01,102027,M9 NILS-R,1,truck_to_drone,4,low,admit_drone,truck,drone,0,0,depot,,-10.4461289035,0.0000000000,0.0000000000,0.0000000000,-17.8579971212,7.4118682176,0.0000000000,247.0505425888,True,
+S0001_R01,102027,M9 NILS-R,2,truck_to_drone,6,low,admit_drone,truck,drone,0,0,depot,,-0.6684071368,0.0000000000,0.0000000000,0.0000000000,-1.2922658893,0.6238587525,0.0000000000,191.2849877988,True,

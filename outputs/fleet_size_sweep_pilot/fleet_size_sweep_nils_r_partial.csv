@@ -1,0 +1,5 @@
+instance_id,scenario_class_id,seed,size,available_drones,active_drones_used,drone_served_customers,drone_share,objective,priority_tardiness_cost,high_priority_tardiness,p90_high_priority_tardiness,high_priority_on_time_rate,mean_high_priority_delivery_time,cpu,feasible,error,reused_original_fleet_run
+S0001_R01,n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,102027,15,0,0,0,,,,,,,,,False,"ValueError('num_customers, num_trucks, num_drones must be positive')",False
+S0001_R01,n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,102027,15,1,1,2,0.1333333333,53.0377964654,0.0000000000,0.0000000000,0.0000000000,1.0000000000,54.0036979836,1.2327475548,True,,True
+S0001_R01,n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,102027,15,2,0,0,,,,,,,,,False,"TypeError(""DroneSpec.__init__() got an unexpected keyword argument 'drone_id'"")",False
+S0001_R01,n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,102027,15,3,0,0,,,,,,,,,False,"TypeError(""DroneSpec.__init__() got an unexpected keyword argument 'drone_id'"")",False

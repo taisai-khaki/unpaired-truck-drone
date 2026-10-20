@@ -1,0 +1,16 @@
+method,size,feasible_runs,mean_high_priority_delivery_time,median_high_priority_delivery_time,p90_high_priority_delivery_time,mean_high_priority_tardiness,median_high_priority_tardiness,p90_high_priority_tardiness,high_priority_on_time_rate,high_priority_late_rate,mean_high_priority_minutes_early_when_on_time,mean_high_priority_delivery_time_relative_to_deadline,high_priority_served_by_drone_share
+M1 Truck-only,All,0,,,,,,,,,,,
+M1 Truck-only,15,0,,,,,,,,,,,
+M1 Truck-only,50,0,,,,,,,,,,,
+M1 Truck-only,75,0,,,,,,,,,,,
+M1 Truck-only,100,0,,,,,,,,,,,
+M5 NILS,All,30,71.810779,41.237296,198.797224,31.474936,0.000000,138.681605,0.699029,0.300971,28.130610,1.196769,0.522654
+M5 NILS,15,0,,,,,,,,,,,
+M5 NILS,50,0,,,,,,,,,,,
+M5 NILS,75,0,,,,,,,,,,,
+M5 NILS,100,30,71.810779,41.237296,198.797224,31.474936,0.000000,138.681605,0.699029,0.300971,28.130610,1.196769,0.522654
+M8 Feasibility-aware ALNS,All,30,118.474957,116.728441,205.166054,64.713565,56.640264,144.982297,0.213592,0.786408,29.207838,1.974767,0.000000
+M8 Feasibility-aware ALNS,15,0,,,,,,,,,,,
+M8 Feasibility-aware ALNS,50,0,,,,,,,,,,,
+M8 Feasibility-aware ALNS,75,0,,,,,,,,,,,
+M8 Feasibility-aware ALNS,100,30,118.474957,116.728441,205.166054,64.713565,56.640264,144.982297,0.213592,0.786408,29.207838,1.974767,0.000000

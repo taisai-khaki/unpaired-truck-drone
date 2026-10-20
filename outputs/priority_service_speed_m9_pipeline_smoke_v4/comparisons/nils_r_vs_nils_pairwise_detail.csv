@@ -1,0 +1,2 @@
+instance_id,scenario_id,n,feasible_nilsr,objective_nilsr,cpu_time_nilsr,feasible_other,objective_other,cpu_time_other,usable_nilsr,usable_other,pair_feasible,objective_diff_nilsr_minus_other,improvement_nilsr_vs_other_pct,winner
+S0028_R01,S0028,50,True,38797.7300082917,13.5272817612,True,21216.0528345632,5.4516057968,True,True,True,17581.6771737285,-82.8696898091,nils

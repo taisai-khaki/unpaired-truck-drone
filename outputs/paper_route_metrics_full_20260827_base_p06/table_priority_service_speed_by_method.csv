@@ -1,0 +1,21 @@
+method,size,feasible_runs,mean_high_priority_delivery_time,median_high_priority_delivery_time,p90_high_priority_delivery_time,mean_high_priority_tardiness,median_high_priority_tardiness,p90_high_priority_tardiness,max_high_priority_tardiness,high_priority_on_time_rate,high_priority_late_rate,mean_high_priority_minutes_early_when_on_time,mean_high_priority_delivery_time_relative_to_deadline,high_priority_served_by_drone_share
+M1 Truck-only,All,50,191.264124,188.644149,336.017687,134.531595,128.516263,276.015202,301.101137,0.127005,0.872995,25.691009,3.188036,0.000000
+M1 Truck-only,15,0,,,,,,,,,,,,
+M1 Truck-only,50,0,,,,,,,,,,,,
+M1 Truck-only,75,50,191.264124,188.644149,336.017687,134.531595,128.516263,276.015202,301.101137,0.127005,0.872995,25.691009,3.188036,0.000000
+M1 Truck-only,100,0,,,,,,,,,,,,
+M5 NILS,All,90,83.775589,52.288000,198.656864,40.381396,0.000000,138.747677,142.650271,0.546165,0.453835,30.402197,1.396228,0.304688
+M5 NILS,15,0,,,,,,,,,,,,
+M5 NILS,50,0,,,,,,,,,,,,
+M5 NILS,75,80,75.969812,48.586376,174.924889,33.153012,0.000000,114.851654,125.940515,0.575104,0.424896,29.873133,1.266229,0.321162
+M5 NILS,100,10,130.110377,101.598868,313.300843,83.288796,41.495773,253.287824,276.328323,0.374384,0.625616,35.226423,2.167895,0.206897
+M8 Feasibility-aware ALNS,All,90,105.584873,102.401565,189.268314,53.235808,42.361240,129.193218,145.782492,0.285511,0.714489,26.793111,1.759741,0.000000
+M8 Feasibility-aware ALNS,15,0,,,,,,,,,,,,
+M8 Feasibility-aware ALNS,50,0,,,,,,,,,,,,
+M8 Feasibility-aware ALNS,75,80,103.610070,100.683854,185.598181,51.619688,40.828490,125.602057,141.067089,0.293776,0.706224,27.253994,1.726904,0.000000
+M8 Feasibility-aware ALNS,100,10,117.307226,108.527067,207.694943,62.829037,48.603590,147.693073,183.505709,0.236453,0.763547,23.394096,1.954662,0.000000
+M9 NILS-R,All,0,,,,,,,,,,,,
+M9 NILS-R,15,0,,,,,,,,,,,,
+M9 NILS-R,50,0,,,,,,,,,,,,
+M9 NILS-R,75,0,,,,,,,,,,,,
+M9 NILS-R,100,0,,,,,,,,,,,,
