@@ -1,0 +1,45 @@
+\begin{table}[htbp]
+\centering
+\caption{Decision-quality diagnostics for drone-use intelligence by instance size}
+\label{tab:smart_drone_use_quality_by_size}
+\footnotesize
+\begin{tabular}{lrrrrr}
+\toprule
+Method & Active drones & Drone share & HP drone share & HP on-time & Mean HP time \\
+\midrule
+\multicolumn{6}{c}{Full design} \\
+\cmidrule(lr){1-6}
+M5 & 1.74 & 22.7\% & 33.3\% & 59.1\% & 82.17 \\
+M8 & 0.54 & 16.1\% & 17.9\% & 34.6\% & 98.58 \\
+M9 & 1.72 & 21.6\% & 32.2\% & 58.1\% & 84.43 \\
+\addlinespace
+\multicolumn{6}{c}{$n=15$} \\
+\cmidrule(lr){1-6}
+M5 & 0.97 & 31.2\% & 37.0\% & 93.1\% & 35.58 \\
+M8 & 0.88 & 31.7\% & 38.7\% & 80.4\% & 41.49 \\
+M9 & 0.94 & 27.9\% & 34.6\% & 88.6\% & 37.72 \\
+\addlinespace
+\multicolumn{6}{c}{$n=50$} \\
+\cmidrule(lr){1-6}
+M5 & 1.10 & 18.8\% & 29.2\% & 65.0\% & 55.53 \\
+M8 & 0.87 & 20.3\% & 19.9\% & 44.3\% & 73.68 \\
+M9 & 1.10 & 18.4\% & 28.7\% & 63.1\% & 57.17 \\
+\addlinespace
+\multicolumn{6}{c}{$n=75$} \\
+\cmidrule(lr){1-6}
+M5 & 2.64 & 19.9\% & 29.8\% & 54.6\% & 80.26 \\
+M8 & 0.03 & 0.1\% & 0.3\% & 29.6\% & 103.37 \\
+M9 & 2.59 & 19.8\% & 29.7\% & 53.5\% & 84.79 \\
+\addlinespace
+\multicolumn{6}{c}{$n=100$} \\
+\cmidrule(lr){1-6}
+M5 & 2.94 & 17.8\% & 35.1\% & 51.7\% & 105.11 \\
+M8 & 0.00 & 0.0\% & 0.0\% & 23.5\% & 120.00 \\
+M9 & 2.93 & 18.3\% & 34.5\% & 51.9\% & 106.95 \\
+\bottomrule
+\end{tabular}
+\begin{flushleft}
+\footnotesize
+\textit{Note}: HP denotes high-priority customers. Each entry is averaged over feasible runs for the indicated size; the exact feasible-run counts and unrounded values are in the accompanying CSV. The M8 rows use the August route-metrics ALNS run that reproduces the submitted $n=100$ diagnostic row.
+\end{flushleft}
+\end{table}

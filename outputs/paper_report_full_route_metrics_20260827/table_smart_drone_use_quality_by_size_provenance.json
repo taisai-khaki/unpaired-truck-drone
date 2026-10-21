@@ -1,0 +1,18 @@
+{
+  "drone_use_source": "outputs\\paper_report_full_route_metrics_20260827\\table_drone_use_decision_quality.csv",
+  "priority_speed_source": "outputs\\paper_report_full_route_metrics_20260827\\table_priority_service_speed_by_method.csv",
+  "methods": [
+    "M5",
+    "M8",
+    "M9"
+  ],
+  "sizes": [
+    "All",
+    "15",
+    "50",
+    "75",
+    "100"
+  ],
+  "aggregation": "Values are copied from the feasible-run aggregates and joined by method and size.",
+  "m8_provenance": "August route-metrics ALNS run used by the submitted n=100 diagnostic table; not the corrected October 40-iteration ALNS benchmark."
+}
