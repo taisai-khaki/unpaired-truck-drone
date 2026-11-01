@@ -1,8 +1,13 @@
-"""Build high-priority delivery-speed statistics for the M1--M8 benchmark."""
+"""Build customer-level diagnostics for the matched M1/M5/M8/M9 benchmark."""
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import math
+import shutil
+import subprocess
+import sys
 import time
 from dataclasses import replace
 from datetime import datetime
@@ -15,10 +20,21 @@ import pandas as pd
 from ..distance_utils import euclidean_distance, travel_time_from_distance
 from ..feasibility import is_feasible
 from ..heuristics.nils import _repair_infeasible_solution, evaluate_solution
+from ..heuristics.nils_r import compute_priority_metrics
 from ..timing import active_rendezvous_events, compute_synchronization_waiting
 from ..instance_generator import load_instance_json
 from ..parameters import SearchConfig, load_and_build_config
-from .heuristic_study import _collect_row, _run_method, _scenario_config
+from .heuristic_study import (
+    _as_levels,
+    _attach_relative_fields,
+    _attach_reporting_fields,
+    _collect_row,
+    _generate_feasibility_disaggregation,
+    _generate_figures,
+    _generate_tables,
+    _run_method,
+    _scenario_config,
+)
 from .run_alns_comparison import _scenario_from_row, _with_alns_settings
 
 
@@ -31,8 +47,9 @@ METHOD_ORDER = {
     "truck_only": ("M1 Truck-only", 1),
     "nils": ("M5 NILS", 5),
     ALNS_METHOD: ("M8 Feasibility-aware ALNS", 8),
+    "nils_r": ("M9 NILS-R", 9),
 }
-ALL_METHODS = MAIN_METHODS + [ALNS_METHOD]
+ALL_METHODS = MAIN_METHODS + [ALNS_METHOD, "nils_r"]
 OUTPUT_COLUMNS = [
     "method",
     "size",
@@ -83,6 +100,19 @@ def _median(values: Iterable[object]) -> float:
 def _p90(values: Iterable[object]) -> float:
     arr = _finite_values(values)
     return float(np.percentile(arr, 90.0)) if arr.size else float("nan")
+
+
+def _max(values: Iterable[object]) -> float:
+    arr = _finite_values(values)
+    return float(np.max(arr)) if arr.size else float("nan")
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def _scenario_key(row: pd.Series) -> str:
@@ -211,7 +241,8 @@ def _customer_detail_rows(instance, solution, method_name: str, scenario_class_i
             sortie_energy = _sortie_energy(instance, solution, int(drone_id), route)
             battery_before = float(solution.battery_drone.get((int(drone_id), launch_node), drone.max_battery_wh))
             battery_after = float(solution.battery_drone.get((int(drone_id), recovery_node), drone.max_battery_wh - sortie_energy))
-            battery_slack = battery_after
+            reserve_wh = float(instance.metadata.get("battery_slack_ratio", 0.0)) * float(drone.max_battery_wh)
+            battery_slack = battery_after - reserve_wh
             if recovery_node == 0:
                 recovery_type = "depot"
             elif launch_truck != "" and recovery_truck != "" and launch_truck != recovery_truck:
@@ -342,11 +373,6 @@ def _aggregate(run_status: pd.DataFrame, customer_rows: pd.DataFrame) -> pd.Data
             on_time = _finite_values(customer_subset["on_time"] if not customer_subset.empty else [])
             late = 1.0 - float(np.mean(on_time)) if on_time.size else float("nan")
             on_time_rate = float(np.mean(on_time)) if on_time.size else float("nan")
-            max_hpt_by_run = (
-                customer_subset.groupby(["instance_id", "method_name"])["tardiness"].max()
-                if not customer_subset.empty
-                else pd.Series(dtype=float)
-            )
             summaries.append(
                 {
                     "_method_order": method_order,
@@ -360,7 +386,7 @@ def _aggregate(run_status: pd.DataFrame, customer_rows: pd.DataFrame) -> pd.Data
                     "mean_high_priority_tardiness": _mean(customer_subset["tardiness"]),
                     "median_high_priority_tardiness": _median(customer_subset["tardiness"]),
                     "p90_high_priority_tardiness": _p90(customer_subset["tardiness"]),
-                    "max_high_priority_tardiness": _mean(max_hpt_by_run),
+                    "max_high_priority_tardiness": _max(customer_subset["tardiness"]),
                     "high_priority_on_time_rate": on_time_rate,
                     "high_priority_late_rate": late,
                     "mean_high_priority_minutes_early_when_on_time": _mean(
@@ -374,6 +400,198 @@ def _aggregate(run_status: pd.DataFrame, customer_rows: pd.DataFrame) -> pd.Data
             )
     table = pd.DataFrame(summaries).sort_values(["_method_order", "_size_order"]).reset_index(drop=True)
     return table[OUTPUT_COLUMNS]
+
+
+def _build_decision_quality_tables(
+    paper_rows: pd.DataFrame,
+    customer_detail_rows: pd.DataFrame,
+    output_dir: Path,
+) -> None:
+    method_labels = {name: value[0] for name, value in METHOD_ORDER.items()}
+    per_run = paper_rows.copy()
+    per_run["method"] = per_run["method_name"].map(method_labels)
+    per_run["size"] = per_run["n"].astype(int).astype(str)
+    detail = customer_detail_rows.copy()
+    reverse_labels = {label: name for name, label in method_labels.items()}
+    if not detail.empty:
+        detail["method_name"] = detail["method"].map(reverse_labels)
+        detail["is_drone_served"] = pd.to_numeric(detail["is_drone_served"], errors="coerce").fillna(0)
+        detail["is_high_priority"] = pd.to_numeric(detail["is_high_priority"], errors="coerce").fillna(0)
+        detail["drone_id"] = detail["drone_id"].replace("", np.nan)
+        active = (
+            detail[detail["is_drone_served"].eq(1)]
+            .groupby(["instance_id", "method_name"])["drone_id"]
+            .nunique()
+            .rename("active_drones_used")
+        )
+        priority_shares = (
+            detail.groupby(["instance_id", "method_name", "priority_class"])["is_drone_served"]
+            .mean()
+            .unstack("priority_class")
+            .rename(
+                columns={
+                    "high": "high_priority_drone_share",
+                    "medium": "medium_priority_drone_share",
+                    "low": "low_priority_drone_share",
+                }
+            )
+        )
+        for share_column in (
+            "high_priority_drone_share",
+            "medium_priority_drone_share",
+            "low_priority_drone_share",
+        ):
+            if share_column not in priority_shares.columns:
+                priority_shares[share_column] = np.nan
+        hp_tail = (
+            detail[detail["is_high_priority"].eq(1)]
+            .groupby(["instance_id", "method_name"])["tardiness"]
+            .quantile(0.90)
+            .rename("p90_high_priority_tardiness")
+        )
+        per_run = per_run.merge(active.reset_index(), on=["instance_id", "method_name"], how="left")
+        per_run = per_run.merge(priority_shares.reset_index(), on=["instance_id", "method_name"], how="left")
+        per_run = per_run.merge(hp_tail.reset_index(), on=["instance_id", "method_name"], how="left")
+    else:
+        per_run["active_drones_used"] = np.nan
+        per_run["high_priority_drone_share"] = np.nan
+        per_run["medium_priority_drone_share"] = np.nan
+        per_run["low_priority_drone_share"] = np.nan
+        per_run["p90_high_priority_tardiness"] = np.nan
+    per_run["active_drones_used"] = per_run["active_drones_used"].fillna(0)
+    per_run["active_drone_ratio"] = per_run["active_drones_used"] / per_run["number_of_drones"].replace(0, np.nan)
+    truck_reference = per_run[per_run["method_name"].eq("truck_only")][
+        ["instance_id", "priority_tardiness_cost", "high_priority_tardiness_minutes", "final_solution_feasibility_flag"]
+    ].rename(
+        columns={
+            "priority_tardiness_cost": "truck_reference_ptc",
+            "high_priority_tardiness_minutes": "truck_reference_hpt",
+            "final_solution_feasibility_flag": "truck_reference_feasible",
+        }
+    )
+    per_run = per_run.merge(truck_reference, on="instance_id", how="left")
+    valid_reference = per_run["truck_reference_feasible"].astype(str).str.lower().isin({"true", "1"})
+    drone_customer_count = pd.to_numeric(per_run["customers_served_by_drone"], errors="coerce")
+    drone_distance = pd.to_numeric(per_run["drone_flight_distance_km"], errors="coerce")
+    per_run["service_value_per_drone_customer"] = np.where(
+        valid_reference & (drone_customer_count > 0),
+        (per_run["truck_reference_ptc"] - per_run["priority_tardiness_cost"]) / drone_customer_count,
+        np.nan,
+    )
+    per_run["service_value_per_active_drone"] = np.where(
+        valid_reference & (per_run["active_drones_used"] > 0),
+        (per_run["truck_reference_ptc"] - per_run["priority_tardiness_cost"]) / per_run["active_drones_used"],
+        np.nan,
+    )
+    per_run["service_value_per_drone_km"] = np.where(
+        valid_reference & (drone_distance > 0),
+        (per_run["truck_reference_ptc"] - per_run["priority_tardiness_cost"]) / drone_distance,
+        np.nan,
+    )
+    per_run["high_priority_protection_ratio"] = np.where(
+        valid_reference,
+        (per_run["truck_reference_hpt"] - per_run["high_priority_tardiness_minutes"])
+        / np.maximum(1e-6, per_run["truck_reference_hpt"]),
+        np.nan,
+    )
+    if "total_sync_wait_readiness_minutes" not in per_run.columns:
+        per_run["total_sync_wait_readiness_minutes"] = np.nan
+    per_run["total_sync_wait_readiness_minutes"] = pd.to_numeric(
+        per_run["total_sync_wait_readiness_minutes"], errors="coerce"
+    )
+    groups = [("All", per_run)] + [
+        (str(size), per_run[per_run["n"].eq(size)]) for size in sorted(per_run["n"].dropna().unique())
+    ]
+    summary_rows = []
+    for size, size_frame in groups:
+        for method_name, label in method_labels.items():
+            method_frame = size_frame[
+                size_frame["method_name"].eq(method_name)
+                & size_frame["final_solution_feasibility_flag"].astype(str).str.lower().isin({"true", "1"})
+            ]
+            if method_frame.empty:
+                continue
+            summary_rows.append(
+                {
+                    "method": label,
+                    "size": size,
+                    "feasible_runs": int(len(method_frame)),
+                    "mean_objective": float(method_frame["objective_total"].mean()),
+                    "mean_priority_tardiness_cost": float(method_frame["priority_tardiness_cost"].mean()),
+                    "mean_high_priority_tardiness": float(method_frame["high_priority_tardiness_minutes"].mean()),
+                    "mean_medium_priority_tardiness": float(method_frame["medium_priority_tardiness_minutes"].mean()),
+                    "mean_low_priority_tardiness": float(method_frame["low_priority_tardiness_minutes"].mean()),
+                    "mean_drone_share": float(method_frame["drone_service_share"].mean()),
+                    "mean_drone_distance": float(method_frame["drone_flight_distance_km"].mean()),
+                    "mean_truck_distance": float(method_frame["truck_route_distance_km"].mean()),
+                    "mean_total_sync_wait": float(method_frame["total_sync_wait_readiness_minutes"].mean()),
+                    "mean_cpu": float(method_frame["cpu_time_seconds"].mean()),
+                    "service_value_per_drone_customer": float(method_frame["service_value_per_drone_customer"].mean()),
+                    "service_value_per_drone_km": float(method_frame["service_value_per_drone_km"].mean()),
+                    "high_priority_protection_ratio": float(method_frame["high_priority_protection_ratio"].mean()),
+                }
+            )
+    decision_quality = pd.DataFrame(summary_rows)
+    tables_dir = output_dir / "tables"
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    decision_quality.to_csv(tables_dir / "table_decision_quality_existing_methods.csv", index=False, float_format="%.10f")
+    use_columns = [
+        "method", "size", "feasible_runs", "mean_available_drones", "mean_active_drones_used",
+        "mean_active_drones_used_ratio", "mean_drone_served_customers", "mean_drone_share",
+        "mean_high_priority_served_by_drone_share", "mean_medium_priority_served_by_drone_share",
+        "mean_low_priority_served_by_drone_share", "mean_priority_tardiness_cost",
+        "mean_high_priority_tardiness", "mean_p90_high_priority_tardiness", "mean_drone_distance",
+        "mean_sync_wait", "mean_battery_slack_after_sortie", "service_value_per_drone_customer",
+        "service_value_per_active_drone", "service_value_per_drone_km",
+    ]
+    use_rows = []
+    for size, size_frame in groups:
+        for method_name, label in method_labels.items():
+            method_frame = size_frame[
+                size_frame["method_name"].eq(method_name)
+                & size_frame["final_solution_feasibility_flag"].astype(str).str.lower().isin({"true", "1"})
+            ]
+            if method_frame.empty:
+                continue
+            available = pd.to_numeric(method_frame["number_of_drones"], errors="coerce")
+            hp_share = pd.to_numeric(method_frame.get("high_priority_drone_share", np.nan), errors="coerce")
+            medium_share = pd.to_numeric(method_frame.get("medium_priority_drone_share", np.nan), errors="coerce")
+            low_share = pd.to_numeric(method_frame.get("low_priority_drone_share", np.nan), errors="coerce")
+            battery = pd.to_numeric(
+                detail[
+                    detail["method_name"].eq(method_name)
+                    & detail["instance_id"].isin(method_frame["instance_id"])
+                    & detail["is_drone_served"].eq(1)
+                ]["battery_slack_after_sortie"],
+                errors="coerce",
+            ) if not detail.empty else pd.Series(dtype=float)
+            use_rows.append(
+                {
+                    "method": label,
+                    "size": size,
+                    "feasible_runs": int(len(method_frame)),
+                    "mean_available_drones": float(available.mean()),
+                    "mean_active_drones_used": float(method_frame["active_drones_used"].mean()),
+                    "mean_active_drones_used_ratio": float(method_frame["active_drone_ratio"].mean()),
+                    "mean_drone_served_customers": float(method_frame["customers_served_by_drone"].mean()),
+                    "mean_drone_share": float(method_frame["drone_service_share"].mean()),
+                    "mean_high_priority_served_by_drone_share": float(hp_share.mean()),
+                    "mean_medium_priority_served_by_drone_share": float(medium_share.mean()),
+                    "mean_low_priority_served_by_drone_share": float(low_share.mean()),
+                    "mean_priority_tardiness_cost": float(method_frame["priority_tardiness_cost"].mean()),
+                    "mean_high_priority_tardiness": float(method_frame["high_priority_tardiness_minutes"].mean()),
+                    "mean_p90_high_priority_tardiness": float(method_frame["p90_high_priority_tardiness"].mean()),
+                    "mean_drone_distance": float(method_frame["drone_flight_distance_km"].mean()),
+                    "mean_sync_wait": float(method_frame["total_sync_wait_readiness_minutes"].mean()),
+                    "mean_battery_slack_after_sortie": float(battery.mean()) if not battery.empty else float("nan"),
+                    "service_value_per_drone_customer": float(method_frame["service_value_per_drone_customer"].mean()),
+                    "service_value_per_active_drone": float(method_frame["service_value_per_active_drone"].mean()),
+                    "service_value_per_drone_km": float(method_frame["service_value_per_drone_km"].mean()),
+                }
+            )
+    pd.DataFrame(use_rows, columns=use_columns).to_csv(
+        tables_dir / "table_drone_use_decision_quality.csv", index=False, float_format="%.10f"
+    )
 
 
 def run_pipeline(
@@ -409,6 +627,40 @@ def run_pipeline(
     customer_detail_path = output_dir / "customer_service_detail.csv"
     reconstruction_path = output_dir / "nils_r_reconstruction_log.csv"
     decision_path = output_dir / "drone_decision_log.csv"
+    paper_rows_path = output_dir / "paper_method_rows_partial.csv"
+    validation_path = output_dir / "replay_objective_audit.csv"
+    derived_columns = {
+        "truck_only_objective",
+        "truck_only_distance",
+        "simple_drone_objective",
+        "improvement_vs_truck_only_pct",
+        "improvement_vs_simple_drone_pct",
+        "truck_distance_reduction_pct",
+        "is_feasible_run",
+        "reporting_policy",
+        "reporting_penalty_value",
+        "objective_for_reporting",
+        "reporting_included",
+        "truck_only_objective_reported",
+        "simple_drone_objective_reported",
+        "improvement_vs_truck_only_reported_pct",
+        "improvement_vs_simple_drone_reported_pct",
+    }
+    paper_columns = [column for column in source.columns if column not in derived_columns]
+    if "total_sync_wait_readiness_minutes" not in paper_columns:
+        paper_columns.append("total_sync_wait_readiness_minutes")
+    paper_rows = _load_partial(paper_rows_path, paper_columns)
+    validation_columns = [
+        "instance_id", "method_name", "source_objective", "replay_objective", "absolute_objective_gap",
+        "source_feasible", "replay_feasible", "feasibility_match", "objective_match", "cpu_time_seconds", "error",
+    ]
+    validation_rows = _load_partial(validation_path, validation_columns)
+    source_lookup = {
+        (str(row["instance_id"]), str(row["method_name"])): row
+        for row in source.to_dict(orient="records")
+    }
+    instance_cache: dict[str, object] = {}
+    solution_cache: dict[tuple[str, str], object] = {}
     run_columns = [
         "instance_id", "scenario_id", "n", "method_name", "feasible", "cpu_time_seconds", "error",
         "objective", "priority_tardiness_cost", "high_priority_tardiness",
@@ -467,18 +719,71 @@ def run_pipeline(
     unknown_methods = sorted(set(selected_methods) - set(ALL_METHODS))
     if unknown_methods:
         raise ValueError(f"Unknown methods: {unknown_methods}")
-    completed = set(zip(run_status["instance_id"].astype(str), run_status["method_name"].astype(str)))
+    provenance_path = output_dir / "run_provenance.json"
+    try:
+        source_commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path.cwd(),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        source_commit = "unavailable"
+    if provenance_path.exists():
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+        if provenance.get("source_git_commit") != source_commit:
+            raise RuntimeError("Cannot resume diagnostics with a different source commit")
+    else:
+        config_copy_dir = output_dir / "config"
+        config_copy_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(main_config_path, config_copy_dir / "main_config.yaml")
+        shutil.copy2(alns_config_path, config_copy_dir / "alns_config.yaml")
+        source_code = Path(__file__).resolve()
+        provenance = {
+            "run_status": "running",
+            "run_started_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "source_git_commit": source_commit,
+            "source_code_file": str(source_code),
+            "source_code_sha256": _sha256(source_code),
+            "main_config_sha256": _sha256(main_config_path),
+            "alns_config_sha256": _sha256(alns_config_path),
+            "source_results_file": str(source_path.resolve()),
+            "source_results_sha256": _sha256(source_path),
+            "input_instances": int(len(meta)),
+            "selected_methods": selected_methods,
+            "configured_nils_time_limit_seconds": float(main_config.heuristics.time_limit_seconds),
+            "configured_alns_time_limit_seconds": float(
+                dict(main_config.experiment or {}).get("alns_time_limit_seconds", float("nan"))
+            ),
+            "configured_alns_max_iterations": int(
+                dict(main_config.experiment or {}).get("alns_max_iter", 0)
+            ),
+            "resume_policy": "append per completed instance; skip successful instance-method pairs",
+        }
+        provenance_path.write_text(json.dumps(provenance, indent=2), encoding="utf-8")
+    successful_status = run_status[run_status["error"].fillna("").astype(str).eq("")]
+    completed = set(zip(successful_status["instance_id"].astype(str), successful_status["method_name"].astype(str)))
     _log(log_path, f"Priority service-speed study start | instances={len(meta)} | methods={selected_methods} | completed_pairs={len(completed)}")
 
     for index, source_row in meta.iterrows():
         instance_id = str(source_row["instance_id"])
         instance = load_instance_json(raw_dir / f"{instance_id}.json")
+        instance_cache[instance_id] = instance
+        copied_raw_dir = output_dir / "raw"
+        copied_raw_dir.mkdir(parents=True, exist_ok=True)
+        for suffix in (".json", ".csv"):
+            source_raw = raw_dir / f"{instance_id}{suffix}"
+            if source_raw.exists():
+                shutil.copy2(source_raw, copied_raw_dir / source_raw.name)
         scenario = _scenario_from_row(source_row)
         _log(log_path, f"[{index + 1}/{len(meta)}] {instance_id} | n={instance.num_customers} start")
         instance_run_rows = []
         instance_customer_rows = []
         instance_customer_detail_rows = []
         instance_decision_rows = []
+        instance_paper_rows = []
+        instance_validation_rows = []
         for method_name in selected_methods:
             key = (instance_id, method_name)
             if key in completed:
@@ -494,7 +799,33 @@ def run_pipeline(
                 )
                 priority_metrics = compute_priority_metrics(instance, solution) if feasible else {}
                 drone_customers = solution.served_by_drone() if feasible else set()
-                rich_metrics = _collect_row(instance, solution, scenario, method_name) if feasible else {}
+                rich_metrics = _collect_row(instance, solution, scenario, method_name)
+                rich_metrics["cpu_time_seconds"] = float(elapsed)
+                rich_metrics["total_sync_wait_readiness_minutes"] = float(
+                    compute_synchronization_waiting(instance, solution)["total_waiting_minutes"]
+                )
+                instance_paper_rows.append(rich_metrics)
+                solution_cache[(instance_id, method_name)] = solution
+                expected = source_lookup.get(key, {})
+                source_objective = float(expected.get("objective_total", float("nan")))
+                replay_objective = float(solution.objective)
+                objective_gap = abs(source_objective - replay_objective)
+                source_feasible = str(expected.get("final_solution_feasibility_flag", "")).strip().lower() in {"true", "1"}
+                instance_validation_rows.append(
+                    {
+                        "instance_id": instance_id,
+                        "method_name": method_name,
+                        "source_objective": source_objective,
+                        "replay_objective": replay_objective,
+                        "absolute_objective_gap": objective_gap,
+                        "source_feasible": source_feasible,
+                        "replay_feasible": bool(feasible),
+                        "feasibility_match": source_feasible == bool(feasible),
+                        "objective_match": bool(np.isfinite(objective_gap) and objective_gap <= 1e-6),
+                        "cpu_time_seconds": float(elapsed),
+                        "error": "",
+                    }
+                )
                 instance_run_rows.append(
                     {
                         "instance_id": instance_id,
@@ -587,6 +918,21 @@ def run_pipeline(
                         "number_of_drone_retrievals": float("nan"),
                     }
                 )
+                instance_validation_rows.append(
+                    {
+                        "instance_id": instance_id,
+                        "method_name": method_name,
+                        "source_objective": float("nan"),
+                        "replay_objective": float("nan"),
+                        "absolute_objective_gap": float("nan"),
+                        "source_feasible": False,
+                        "replay_feasible": False,
+                        "feasibility_match": False,
+                        "objective_match": False,
+                        "cpu_time_seconds": float("nan"),
+                        "error": repr(error),
+                    }
+                )
                 _log(log_path, f"  {instance_id} | {method_name} | failed error={error}")
 
         if instance_run_rows:
@@ -606,11 +952,19 @@ def run_pipeline(
             reconstruction_rows = reconstruction_rows.drop_duplicates(
                 ["instance_id", "reconstruction_attempt"], keep="last"
             )
+            if instance_paper_rows:
+                paper_rows = pd.concat([paper_rows, pd.DataFrame(instance_paper_rows)], ignore_index=True)
+                paper_rows = paper_rows.drop_duplicates(["instance_id", "method_name"], keep="last")
+            if instance_validation_rows:
+                validation_rows = pd.concat([validation_rows, pd.DataFrame(instance_validation_rows)], ignore_index=True)
+                validation_rows = validation_rows.drop_duplicates(["instance_id", "method_name"], keep="last")
             _write_partial(run_status, run_path)
             _write_partial(customer_rows, customer_path)
             _write_partial(customer_detail_rows, customer_detail_path)
             _write_partial(decision_rows, decision_path)
             _write_partial(reconstruction_rows, reconstruction_path)
+            _write_partial(paper_rows, paper_rows_path)
+            _write_partial(validation_rows, validation_path)
 
     table = _aggregate(run_status, customer_rows)
     output_path = output_dir / "table_priority_service_speed_by_method.csv"
@@ -618,6 +972,45 @@ def run_pipeline(
     reconstruction_rows.to_csv(reconstruction_path, index=False, float_format="%.10f")
     customer_detail_rows.to_csv(customer_detail_path, index=False, float_format="%.10f")
     decision_rows.to_csv(decision_path, index=False, float_format="%.10f")
+    validation_rows.to_csv(validation_path, index=False, float_format="%.10f")
+    paper_rows = paper_rows.drop_duplicates(["instance_id", "method_name"], keep="last")
+    paper_rows["final_solution_feasibility_flag"] = (
+        paper_rows["final_solution_feasibility_flag"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .map({"true": True, "false": False, "1": True, "0": False})
+        .fillna(False)
+        .astype(bool)
+    )
+    paper_rows = _attach_relative_fields(paper_rows)
+    paper_rows = _attach_reporting_fields(paper_rows, main_config)
+    tables_dir = output_dir / "tables"
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    paper_rows.to_csv(tables_dir / "heuristic_study_runs.csv", index=False)
+    _generate_tables(paper_rows, _as_levels(main_config), output_dir)
+    _generate_feasibility_disaggregation(paper_rows, output_dir)
+    _generate_figures(paper_rows, output_dir, instance_cache, solution_cache)
+    _build_decision_quality_tables(paper_rows, customer_detail_rows, output_dir)
+    table.to_csv(tables_dir / "table_priority_service_speed_by_method.csv", index=False, float_format="%.6f")
+    successful_pairs = run_status[run_status["error"].fillna("").astype(str).eq("")][
+        ["instance_id", "method_name"]
+    ].drop_duplicates()
+    expected_pairs = len(meta) * len(selected_methods)
+    provenance.update(
+        {
+            "run_status": "complete" if len(successful_pairs) == expected_pairs else "incomplete",
+            "run_finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "method_rows": int(len(run_status)),
+            "paper_table_rows": int(len(paper_rows)),
+            "customer_detail_rows": int(len(customer_detail_rows)),
+            "decision_log_rows": int(len(decision_rows)),
+            "reconstruction_log_rows": int(len(reconstruction_rows)),
+            "objective_replay_matches": int(validation_rows["objective_match"].fillna(False).astype(bool).sum()),
+            "objective_replay_mismatches": int((~validation_rows["objective_match"].fillna(False).astype(bool)).sum()),
+        }
+    )
+    provenance_path.write_text(json.dumps(provenance, indent=2), encoding="utf-8")
     _log(log_path, f"Priority service-speed study complete | rows={len(table)} | output={output_path}")
     return table
 
