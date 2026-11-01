@@ -7,6 +7,7 @@ from copy import deepcopy
 from ..distance_utils import euclidean_distance, manhattan_distance
 from ..data_models import SolutionData
 from ..data_models import InstanceData
+from ..timing import active_rendezvous_events
 
 
 def route_cost(route: List[int], nodes: Dict[int, Tuple[float, float]], metric: str = "manhattan") -> float:
@@ -67,6 +68,15 @@ def apply_two_opt_to_solution(solution: SolutionData, instance: InstanceData) ->
         if len(route) <= 4:
             continue
         if route[0] != 0 or route[-1] != 0:
+            continue
+        # Rendezvous nodes carry parcel/battery state transitions. Reordering
+        # them without rebuilding the loaded-flow sequence can move a reload
+        # before the wrong service and invalidate the sortie.
+        event_nodes = {
+            node for node, drone_id, _truck_id in active_rendezvous_events(solution)
+            if drone_id == d
+        }
+        if event_nodes:
             continue
         improved = two_opt(route, node_map, metric="euclidean")
         out.drone_routes[d] = improved

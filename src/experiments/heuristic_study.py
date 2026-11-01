@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 import math
 import time
 from dataclasses import replace
@@ -16,6 +17,7 @@ import pandas as pd
 from ..data_models import InstanceData, SolutionData
 from ..distance_utils import euclidean_distance, manhattan_distance, travel_time_from_distance
 from ..feasibility import is_feasible
+from ..timing import active_rendezvous_events
 from ..heuristics import run_nils
 from ..heuristics.baselines import (
     feasibility_aware_alns_baseline,
@@ -33,7 +35,8 @@ from ..heuristics.baselines import (
 )
 from ..heuristics.construction import build_initial_solution
 from ..heuristics.nils import _repair_infeasible_solution, evaluate_solution, summarize_drone_usage
-from ..instance_generator import InstanceGenerator
+from ..timing import compute_synchronization_waiting
+from ..instance_generator import InstanceGenerator, load_instance_json
 from ..parameters import SearchConfig
 from ..reporting.latex_export import dataframe_to_latex
 from .statistics import bootstrap_ci, paired_comparison
@@ -48,21 +51,17 @@ DEFAULT_STUDY_LEVELS = {
     "spatial_pattern": ["uniform", "clustered"],
     "drones_available": [1, 2, 3],
     "priority_weight_profile": ["base"],
-    "battery_slack_ratio": [0.15],
+    "battery_slack_ratio": [0.10],
 }
 
 DEFAULT_METHODS = [
     "truck_only",
     "simple_drone",
-    "random_feasible",
     "paired_baseline",
     "no_unpairing",
     "nils",
-    "nils_r",
     "nils_no_local_search",
     "nils_no_perturbation",
-    "nils_no_battery_screening",
-    "nils_soft_drone_target",
     "feasibility_aware_alns",
 ]
 
@@ -85,6 +84,42 @@ def _log(progress_path: Path, message: str) -> None:
     print(line)
     with progress_path.open("a", encoding="utf-8") as fh:
         fh.write(f"{line}\n")
+
+
+def _checkpoint_key(row: Dict[str, object]) -> Tuple[str, str]:
+    return str(row.get("instance_id", "")), str(row.get("method_name", ""))
+
+
+def _load_study_checkpoint(path: Path) -> Tuple[List[Dict[str, object]], set[Tuple[str, str]]]:
+    rows: List[Dict[str, object]] = []
+    keys: set[Tuple[str, str]] = set()
+    if not path.exists():
+        return rows, keys
+    with path.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict):
+                continue
+            key = _checkpoint_key(row)
+            if not key[0] or not key[1] or key in keys:
+                continue
+            rows.append(row)
+            keys.add(key)
+    return rows, keys
+
+
+def _append_study_checkpoint(path: Path, row: Dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(row, default=lambda value: value.item() if isinstance(value, np.generic) else str(value), allow_nan=True))
+        fh.write("\n")
+        fh.flush()
 
 
 def _safe_div(numer: float, denom: float) -> float:
@@ -172,7 +207,7 @@ def _design_feature_matrix(levels: Dict[str, List], scenarios: List[Dict[str, ob
     elig_vec = np.array([float(s["eligible_share"]) for s in scenarios], dtype=float)
     speed_vec = np.array([float(s["speed_ratio"]) for s in scenarios], dtype=float)
     drones_vec = np.array([float(s["drones_available"]) for s in scenarios], dtype=float)
-    slack_vec = np.array([float(s.get("battery_slack_ratio", 0.15)) for s in scenarios], dtype=float)
+    slack_vec = np.array([float(s.get("battery_slack_ratio", 0.10)) for s in scenarios], dtype=float)
 
     n_s = _scale_to_unit(n_vec)
     elig_s = _scale_to_unit(elig_vec)
@@ -449,7 +484,13 @@ def _scenario_config(base: SearchConfig, scenario: Dict[str, object]) -> SearchC
         num_drones=drones,
         region=region,
     )
-    runtime = replace(base.vehicle_runtime, swap_time_s=handling_s, reload_time_s=handling_s, region=region)
+    runtime = replace(
+        base.vehicle_runtime,
+        swap_time_s=handling_s,
+        reload_time_s=handling_s,
+        handling_time_s=handling_s,
+        region=region,
+    )
     return SearchConfig(
         seed=base.seed,
         generation=generation,
@@ -560,20 +601,10 @@ def _route_distance(route: List[int], coords: Dict[int, Tuple[float, float]], *,
 def _sync_delay_stats(instance: InstanceData, solution: SolutionData) -> Tuple[float, float, int]:
     delays: List[float] = []
     delayed_events = 0
-    sync_window = max(instance.constants.swap_time_s, instance.constants.reload_time_s) / 60.0
-    for (node, drone, truck), val in solution.z1.items():
-        if val <= 0.5:
-            continue
-        delta = abs(solution.a_truck.get((truck, node), 0.0) - solution.a_drone.get((drone, node), 0.0))
-        delays.append(delta)
-        if delta > sync_window + 1e-9:
-            delayed_events += 1
-    for (node, drone, truck), val in solution.z2.items():
-        if val <= 0.5:
-            continue
-        delta = abs(solution.a_truck.get((truck, node), 0.0) - solution.a_drone.get((drone, node), 0.0))
-        delays.append(delta)
-        if delta > sync_window + 1e-9:
+    diagnostics = compute_synchronization_waiting(instance, solution)
+    for event in diagnostics["events"]:
+        delays.append(float(event["total_wait"]))
+        if float(event["total_wait"]) > 1e-9:
             delayed_events += 1
     if not delays:
         return 0.0, 0.0, 0
@@ -616,7 +647,7 @@ def _collect_row(
     method_name: str,
 ) -> Dict[str, object]:
     coords = instance.coordinate_map()
-    usage = summarize_drone_usage(solution)
+    usage = summarize_drone_usage(solution, instance)
     truck_distance = float(sum(_route_distance(route, coords, metric="manhattan") for route in solution.truck_routes.values()))
     drone_distance = float(sum(_route_distance(route, coords, metric="euclidean") for route in solution.drone_routes.values()))
     truck_served = len(solution.served_by_truck())
@@ -636,12 +667,8 @@ def _collect_row(
     if solution.a_drone:
         makespan = max(makespan, float(max(solution.a_drone.values())))
 
-    launches = int(usage.get("reload_events", 0))
-    retrievals = int(usage.get("battery_swaps", 0))
-    if launches == 0:
-        launches = int(usage.get("nonempty_drone_routes", 0))
-    if retrievals == 0:
-        retrievals = int(usage.get("nonempty_drone_routes", 0))
+    launches = int(usage.get("drone_launches", 0))
+    retrievals = int(usage.get("drone_retrievals", 0))
 
     avg_sync_delay, max_sync_delay, delayed_rendezvous_events = _sync_delay_stats(instance, solution)
     avg_batt_ratio, max_batt_ratio, near_endurance = _battery_usage_stats(instance, solution, coords)
@@ -670,7 +697,7 @@ def _collect_row(
     scenario_class = (
         f"n{scenario['n']}_p{float(scenario['eligible_share']):.2f}_d{scenario['drones_available']}_"
         f"{scenario['spatial_pattern']}_E{scenario['endurance']}_V{float(scenario['speed_ratio']):.2f}_"
-        f"H{scenario['handling_time']}_PW{priority_profile}_B{float(scenario.get('battery_slack_ratio', 0.15)):.2f}"
+        f"H{scenario['handling_time']}_PW{priority_profile}_B{float(scenario.get('battery_slack_ratio', 0.10)):.2f}"
     )
 
     return {
@@ -689,7 +716,7 @@ def _collect_row(
         "spatial_pattern": str(scenario["spatial_pattern"]),
         "launch_retrieval_time_class": str(scenario["handling_time"]),
         "priority_weight_profile": priority_profile,
-        "battery_slack_ratio": float(scenario.get("battery_slack_ratio", 0.15)),
+        "battery_slack_ratio": float(scenario.get("battery_slack_ratio", 0.10)),
         "priority_weight_high": float(weights["high"]),
         "priority_weight_medium": float(weights["medium"]),
         "priority_weight_low": float(weights["low"]),
@@ -1002,9 +1029,7 @@ def _generate_tables(df: pd.DataFrame, levels: Dict[str, List], out_dir: Path) -
         .reset_index()
         .rename(columns={"objective_for_reporting": "objective_reported"})
     )
-    table5["component_sum"] = (
-        table5["truck_travel_cost"] + table5["drone_travel_cost"] + table5["waiting_sync_cost"] + table5["priority_tardiness_cost"]
-    )
+    table5["component_sum"] = table5["truck_travel_cost"] + table5["drone_travel_cost"] + table5["priority_tardiness_cost"]
     table5["truck_cost_share_pct"] = table5.apply(
         lambda r: _safe_div(float(r["truck_travel_cost"]) * 100.0, float(r["component_sum"])),
         axis=1,
@@ -1418,14 +1443,11 @@ def _heatmap(
 def _drone_sortie_nodes(solution: SolutionData, drone_id: int) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
     launches: List[Tuple[float, int, int]] = []
     recoveries: List[Tuple[float, int, int]] = []
-    for (node, drone, truck), val in solution.z1.items():
-        if drone != drone_id or val <= 0.5:
+    for node, drone, truck in active_rendezvous_events(solution):
+        if drone != drone_id:
             continue
         ts = float(solution.a_drone.get((drone_id, node), solution.a_truck.get((truck, node), float(node))))
         launches.append((ts, int(node), int(truck)))
-    for (node, drone, truck), val in solution.z2.items():
-        if drone != drone_id or val <= 0.5:
-            continue
         ts = float(solution.a_drone.get((drone_id, node), solution.a_truck.get((truck, node), float(node))))
         recoveries.append((ts, int(node), int(truck)))
     launches.sort(key=lambda x: x[0])
@@ -1805,6 +1827,19 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
 
     raw_dir = target_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_file = Path(str(exp_cfg.get("study_checkpoint_file", "checkpoints/heuristic_study_rows.jsonl")))
+    if not checkpoint_file.is_absolute():
+        checkpoint_file = target_dir / checkpoint_file
+    rows, checkpoint_keys = _load_study_checkpoint(checkpoint_file)
+    resume_instances = bool(exp_cfg.get("study_resume", True))
+    chunk_limit = max(0, int(exp_cfg.get("study_max_new_instances_per_run", 0)))
+    new_instances_completed = 0
+    stop_after_chunk = False
+    _log(
+        progress_path,
+        f"checkpoint={checkpoint_file} | restored_rows={len(rows)} | resume_instances={resume_instances} | "
+        f"chunk_limit={chunk_limit or 'none'}",
+    )
 
     for s_idx, scenario in enumerate(scenarios, start=1):
         bar = f"[{s_idx}/{len(scenarios)}]"
@@ -1814,7 +1849,7 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
             f"eligible={scenario['eligible_share']} end={scenario['endurance']} ratio={scenario['speed_ratio']} "
             f"handling={scenario['handling_time']} spatial={scenario['spatial_pattern']} "
             f"pweights={scenario.get('priority_weight_profile', 'base')} "
-            f"beta={float(scenario.get('battery_slack_ratio', 0.15)):.2f}",
+            f"beta={float(scenario.get('battery_slack_ratio', 0.10)):.2f}",
         )
         scenario_cfg = _scenario_config(config, scenario)
         generator = InstanceGenerator.from_search_config(scenario_cfg)
@@ -1823,7 +1858,14 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
             instance_id = f"{scenario['scenario_id']}_R{rep:02d}"
             instance: InstanceData | None = None
             inst_seed = base_seed
-            for regen_try in range(regen_max_attempts):
+            instance_path = raw_dir / f"{instance_id}.json"
+            if resume_instances and instance_path.exists():
+                try:
+                    instance = load_instance_json(instance_path)
+                    inst_seed = int(instance.seed)
+                except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+                    instance = None
+            for regen_try in ([] if instance is not None else range(regen_max_attempts)):
                 inst_seed = int(base_seed + regen_try * 1_000_003)
                 candidate = generator.generate_single(
                     seed=inst_seed,
@@ -1833,6 +1875,7 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                         "num_drones": int(scenario["drones_available"]),
                         "swap_time_s": _handling_seconds(scenario["handling_time"]),
                         "reload_time_s": _handling_seconds(scenario["handling_time"]),
+                        "handling_time_s": _handling_seconds(scenario["handling_time"]),
                     },
                 )
                 _apply_eligibility_mask(candidate, float(scenario["eligible_share"]), inst_seed)
@@ -1845,7 +1888,7 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                         "handling_time_class": scenario["handling_time"],
                         "drones_available": scenario["drones_available"],
                         "priority_weight_profile": str(scenario.get("priority_weight_profile", "base")).strip().lower(),
-                        "battery_slack_ratio": float(scenario.get("battery_slack_ratio", 0.15)),
+                        "battery_slack_ratio": float(scenario.get("battery_slack_ratio", 0.10)),
                         "regen_attempt": int(regen_try),
                     }
                 )
@@ -1881,8 +1924,13 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
 
             generator.save(instance, raw_dir / f"{instance_id}.json")
             instance_cache[instance_id] = instance
+            instance_had_new_result = False
 
             for method_name in methods:
+                method_key = (instance_id, method_name)
+                if method_key in checkpoint_keys:
+                    _log(progress_path, f"  {instance_id} | method={method_name} | checkpoint-skip")
+                    continue
                 _log(progress_path, f"  {instance_id} | method={method_name} | start")
                 t0 = time.time()
                 try:
@@ -1906,6 +1954,9 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                     row = _collect_row(instance, solution, scenario, method_name)
                     row["cpu_time_seconds"] = float(time.time() - t0)
                     rows.append(row)
+                    _append_study_checkpoint(checkpoint_file, row)
+                    checkpoint_keys.add(method_key)
+                    instance_had_new_result = True
                     if method_name in {"nils", "paired_baseline", "no_unpairing", "truck_only", "simple_drone"}:
                         solution_cache[(instance_id, method_name)] = solution
                     _log(
@@ -1914,8 +1965,7 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                         f"time={row['cpu_time_seconds']:.2f}s",
                     )
                 except Exception as ex:
-                    rows.append(
-                        {
+                    row = {
                             "instance_id": instance_id,
                             "random_seed": inst_seed,
                             "method_name": method_name,
@@ -1924,7 +1974,7 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                                 f"n{scenario['n']}_p{float(scenario['eligible_share']):.2f}_d{scenario['drones_available']}_"
                                 f"{scenario['spatial_pattern']}_E{scenario['endurance']}_V{float(scenario['speed_ratio']):.2f}_"
                                 f"H{scenario['handling_time']}_PW{str(scenario.get('priority_weight_profile', 'base')).strip().lower()}"
-                                f"_B{float(scenario.get('battery_slack_ratio', 0.15)):.2f}"
+                                f"_B{float(scenario.get('battery_slack_ratio', 0.10)):.2f}"
                             ),
                             "n": int(scenario["n"]),
                             "eligible_share": float(scenario["eligible_share"]),
@@ -1936,7 +1986,7 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                             "spatial_pattern": str(scenario["spatial_pattern"]),
                             "launch_retrieval_time_class": str(scenario["handling_time"]),
                             "priority_weight_profile": str(scenario.get("priority_weight_profile", "base")).strip().lower(),
-                            "battery_slack_ratio": float(scenario.get("battery_slack_ratio", 0.15)),
+                            "battery_slack_ratio": float(scenario.get("battery_slack_ratio", 0.10)),
                             "priority_weight_high": float(
                                 _priority_penalties_for_profile(
                                     scenario.get("priority_weight_profile", "base"),
@@ -1998,8 +2048,20 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                             "status": "error",
                             "run_label": f"failed: {ex}",
                         }
-                    )
+                    rows.append(row)
+                    _append_study_checkpoint(checkpoint_file, row)
+                    checkpoint_keys.add(method_key)
+                    instance_had_new_result = True
                     _log(progress_path, f"  {instance_id} | method={method_name} | failed error={ex}")
+
+            if chunk_limit and instance_had_new_result:
+                new_instances_completed += 1
+                if new_instances_completed >= chunk_limit:
+                    stop_after_chunk = True
+                    _log(progress_path, f"study chunk limit reached after {new_instances_completed} new instances")
+                    break
+        if stop_after_chunk:
+            break
 
     df = pd.DataFrame(rows)
     df = _attach_relative_fields(df)

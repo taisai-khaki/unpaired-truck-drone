@@ -24,6 +24,7 @@ def build_objective(
     u_drone: Dict[Tuple[int, int], object],
     a_bar_truck: Dict[Tuple[int, int], object],
     a_bar_drone: Dict[Tuple[int, int], object],
+    lambda_loaded: Dict[Tuple[int, int, int], object] | None = None,
     include_waiting: bool = False,
 ) -> Dict[str, object]:
     """Construct the exact objective and return component expressions."""
@@ -55,14 +56,18 @@ def build_objective(
                 # Distance is derived from travel-time entries to avoid duplicate
                 # pre-computation in constraints.
                 distance_km = t_empty[(i, j, d)] * drone.speed_kmph / 60.0
-                loaded_state = y_loaded.get((d, j), 0.0)
+                loaded_state = (
+                    lambda_loaded.get((i, j, d), y_loaded.get((d, j), 0.0))
+                    if lambda_loaded is not None
+                    else y_loaded.get((d, j), 0.0)
+                )
+                energy = t_empty[(i, j, d)] * (
+                    drone.energy_per_min_when_empty * x_drone[(i, j, d)]
+                    + (drone.energy_per_min_when_loaded - drone.energy_per_min_when_empty) * loaded_state
+                )
                 drone_cost_terms.append(
-                    x_drone[(i, j, d)]
-                    * (
-                        drone.cost_per_km * distance_km
-                        + drone.energy_cost_per_min
-                        * ((1 - loaded_state) * t_empty[(i, j, d)] + loaded_state * t_loaded[(i, j, d)])
-                    ),
+                    drone.cost_per_km * distance_km * x_drone[(i, j, d)]
+                    + drone.energy_cost_per_min * energy,
                 )
                 if include_waiting:
                     waiting_terms.append(tw_drone[(d, i)])

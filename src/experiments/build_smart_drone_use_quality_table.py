@@ -7,12 +7,11 @@ from pathlib import Path
 import pandas as pd
 
 
-METHOD_ORDER = ["M5", "M8", "M9"]
+METHOD_ORDER = ["M5", "M8"]
 SIZE_ORDER = ["All", "15", "50", "75", "100"]
 METHOD_MAP = {
     "M5 NILS": "M5",
     "M8 Feasibility-aware ALNS": "M8",
-    "M9 NILS-R": "M9",
 }
 
 
@@ -20,7 +19,7 @@ def _read_source(path: Path, source_name: str) -> pd.DataFrame:
     frame = pd.read_csv(path)
     frame = frame[frame["method"].isin(METHOD_MAP)].copy()
     if frame.empty:
-        raise ValueError(f"No M5/M8/M9 rows found in {source_name}")
+        raise ValueError(f"No M5/M8 rows found in {source_name}")
     frame["method"] = frame["method"].map(METHOD_MAP)
     frame["size"] = frame["size"].astype(str)
     return frame
@@ -68,7 +67,7 @@ def build_table(use_path: Path, speed_path: Path, output_dir: Path) -> pd.DataFr
         "methods": METHOD_ORDER,
         "sizes": SIZE_ORDER,
         "aggregation": "Values are copied from the feasible-run aggregates and joined by method and size.",
-        "m8_provenance": "August route-metrics ALNS run used by the submitted n=100 diagnostic table; not the corrected October 40-iteration ALNS benchmark.",
+        "m8_provenance": "Use the matched feasibility-aware ALNS benchmark identified by the experiment protocol; do not mix historical August and corrected October runs.",
     }
     (output_dir / "table_smart_drone_use_quality_by_size_provenance.json").write_text(
         json.dumps(provenance, indent=2), encoding="utf-8"

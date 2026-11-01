@@ -415,6 +415,7 @@ def _empty_like(instance: InstanceData, solution: SolutionData) -> SolutionData:
     out.u_drone = {}
     out.z1 = {}
     out.z2 = {}
+    out.u_sync = {}
     out.y_loaded = {}
     out.a_truck = {}
     out.l_truck = {}

@@ -61,9 +61,9 @@ python -m src.cli --config config/experiment_heuristic_study.yaml run-heuristic-
 ## Heuristic-Only Benchmark Study (Recommended for large-scale runs)
 
 `run-heuristic-study` executes:
-- strong baselines (`truck_only`, `simple_drone`, `random_feasible`, `paired_baseline`, `no_unpairing`),
-- full NILS,
-- ablation variants (`nils_no_local_search`, `nils_no_perturbation`, `nils_no_battery_screening`),
+- M1--M4 architecture baselines (`truck_only`, `simple_drone`, `paired_baseline`, `no_unpairing`),
+- M5 full NILS and M8 feasibility-aware ALNS,
+- M6--M7 ablation variants (`nils_no_local_search`, `nils_no_perturbation`),
 - multi-factor scenario grid experiments,
 - publication tables and figures (`outputs/tables`, `outputs/figures`),
 - per-run progress logs (`outputs/logs/heuristic_study_progress_*.log`).

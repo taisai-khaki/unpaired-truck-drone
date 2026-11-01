@@ -25,6 +25,7 @@ costs:
   drone_energy_cost_per_min: 0.00
   swap_time_s: 60
   reload_time_s: 60
+  handling_time_s: 60
 
 vehicles:
   truck:
@@ -37,13 +38,15 @@ vehicles:
     curb_weight_kg: 3.0
     parcel_weight_kg: 2.0
     power_coeff:
-      c1: 0.0549
-      c2: 0.0024
-      c3: 0.0022
-      c4: 0.0089
+      c1: 2.8037
+      c2: 0.3177
+      c3: 0.0
+      c4: 0.0296
+      c5: 0.0279
+      gravity_m_per_s2: 9.8
+      alpha_deg: 10.0
       beta: 1.0
       rated_power_output: 1.0
-      forward_tilt_angle_rad: 0.2
 
 priority_penalties:
   high: 100
@@ -53,7 +56,7 @@ priority_penalties:
 constraints:
   t_max_minutes: 480
   big_m: 10000
-  strict_time_windows: true
+  strict_time_windows: false
   enforce_subtour_elim: true
 
 milp:

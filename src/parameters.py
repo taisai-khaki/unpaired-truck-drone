@@ -1,6 +1,7 @@
 """Configuration helpers and YAML loading for all experiment pipelines."""
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Tuple
@@ -41,10 +42,13 @@ class DroneSpec(VehicleSpec):
 
 @dataclass(frozen=True)
 class AerodynamicModel:
-    c1: float = 0.0549
-    c2: float = 0.0024
-    c3: float = 0.0022
-    c4: float = 0.0089
+    c1: float = 2.8037
+    c2: float = 0.3177
+    c3: float = 0.0
+    c4: float = 0.0296
+    c5: float = 0.0279
+    gravity_m_per_s2: float = 9.8
+    alpha_deg: float = 10.0
     beta: float = 1.0
     rated_power_output: float = 1.0
 
@@ -118,7 +122,9 @@ class HeuristicConfig:
 class ConstraintConfig:
     t_max_minutes: float = 480.0
     big_m: float = 10000.0
-    strict_time_windows: bool = True
+    # The lower target-window bound is hard; the upper bound is represented by
+    # the tardiness objective in the current paper formulation.
+    strict_time_windows: bool = False
     enforce_subtour_elim: bool = True
 
 
@@ -131,6 +137,7 @@ class VehicleRuntimeConfig:
     demand_max: float = 4.5
     swap_time_s: float = 60.0
     reload_time_s: float = 60.0
+    handling_time_s: float = 60.0
 
 
 @dataclass(frozen=True)
@@ -269,7 +276,7 @@ def build_search_config(data: Dict[str, Any]) -> SearchConfig:
     constraints = ConstraintConfig(
         t_max_minutes=float(constraints_raw.get("t_max_minutes", 480.0)),
         big_m=float(constraints_raw.get("big_m", 10000.0)),
-        strict_time_windows=bool(constraints_raw.get("strict_time_windows", True)),
+        strict_time_windows=bool(constraints_raw.get("strict_time_windows", False)),
         enforce_subtour_elim=bool(constraints_raw.get("enforce_subtour_elim", True)),
     )
 
@@ -296,10 +303,18 @@ def build_search_config(data: Dict[str, Any]) -> SearchConfig:
             energy_cost_per_min=float(costs_raw.get("drone_energy_cost_per_min", drone_raw.get("energy_cost_per_min", 0.0))),
         ),
         drone_aero=AerodynamicModel(
-            c1=float(power_raw.get("c1", 0.0549)),
-            c2=float(power_raw.get("c2", 0.0024)),
-            c3=float(power_raw.get("c3", 0.0022)),
-            c4=float(power_raw.get("c4", 0.0089)),
+            c1=float(power_raw.get("c1", 2.8037)),
+            c2=float(power_raw.get("c2", 0.3177)),
+            c3=float(power_raw.get("c3", 0.0)),
+            c4=float(power_raw.get("c4", 0.0296)),
+            c5=float(power_raw.get("c5", 0.0279)),
+            gravity_m_per_s2=float(power_raw.get("gravity_m_per_s2", 9.8)),
+            alpha_deg=float(
+                power_raw.get(
+                    "alpha_deg",
+                    math.degrees(float(power_raw.get("forward_tilt_angle_rad", math.radians(10.0)))),
+                )
+            ),
             beta=float(power_raw.get("beta", 1.0)),
             rated_power_output=float(power_raw.get("rated_power_output", 1.0)),
         ),
@@ -313,6 +328,9 @@ def build_search_config(data: Dict[str, Any]) -> SearchConfig:
         demand_max=float(generation.demand_max),
         swap_time_s=float(costs_raw.get("swap_time_s", 60.0)),
         reload_time_s=float(costs_raw.get("reload_time_s", 60.0)),
+        handling_time_s=float(
+            costs_raw.get("handling_time_s", costs_raw.get("reload_time_s", 60.0))
+        ),
     )
 
     return SearchConfig(

@@ -61,7 +61,9 @@ def _build_travel_times(
             for d in instance.drone_ids():
                 base = travel_time_from_distance(euclid[(i, j)], instance.drones[d - 1].speed_kmph)
                 t_empty[(i, j, d)] = base
-                t_loaded[(i, j, d)] = base * 1.05
+                # Appendix A.3 uses a fixed-speed assumption, so loaded and
+                # empty flight times are equal; payload affects energy only.
+                t_loaded[(i, j, d)] = base
     return t_truck, t_empty, t_loaded
 
 
@@ -96,14 +98,37 @@ def build_model(instance: InstanceData, config: SearchConfig) -> MilpArtifacts:
 
     z1 = {(i, d, t): model.addVar(vtype=gp.GRB.BINARY, name=f"zLoad_{d}_{t}_{i}") for t in instance.truck_ids() for d in instance.drone_ids() for i in nodes}
     z2 = {(i, d, t): model.addVar(vtype=gp.GRB.BINARY, name=f"zSwap_{d}_{t}_{i}") for t in instance.truck_ids() for d in instance.drone_ids() for i in nodes}
+    u_sync = {(i, d, t): model.addVar(vtype=gp.GRB.BINARY, name=f"uSync_{d}_{t}_{i}") for t in instance.truck_ids() for d in instance.drone_ids() for i in nodes}
     y_loaded = {(d, i): model.addVar(vtype=gp.GRB.BINARY, name=f"yL_{d}_{i}") for d in instance.drone_ids() for i in instance.customer_ids}
+    lambda_loaded = {
+        (i, j, d): model.addVar(vtype=gp.GRB.BINARY, name=f"lambda_{d}_{i}_{j}")
+        for d in instance.drone_ids()
+        for i in nodes
+        for j in nodes
+        if i != j
+    }
 
     w = {(t, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, name=f"load_{t}_{i}") for t in instance.truck_ids() for i in nodes}
     r = {(d, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, name=f"batt_{d}_{i}") for d in instance.drone_ids() for i in nodes}
+    r_departure = {
+        (d, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, name=f"battDep_{d}_{i}")
+        for d in instance.drone_ids()
+        for i in nodes
+    }
     a_truck = {(t, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, ub=instance.constants.max_shift_minutes, name=f"aT_{t}_{i}") for t in instance.truck_ids() for i in nodes}
     a_drone = {(d, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, ub=instance.constants.max_shift_minutes, name=f"aD_{d}_{i}") for d in instance.drone_ids() for i in nodes}
+    ready_truck = {(t, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, ub=instance.constants.max_shift_minutes, name=f"rdyT_{t}_{i}") for t in instance.truck_ids() for i in nodes}
+    ready_drone = {(d, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, ub=instance.constants.max_shift_minutes, name=f"rdyD_{d}_{i}") for d in instance.drone_ids() for i in nodes}
     l_truck = {(t, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, ub=instance.constants.max_shift_minutes, name=f"lT_{t}_{i}") for t in instance.truck_ids() for i in nodes}
     l_drone = {(d, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, ub=instance.constants.max_shift_minutes, name=f"lD_{d}_{i}") for d in instance.drone_ids() for i in nodes}
+    return_time_truck = {
+        t: model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, ub=instance.constants.max_shift_minutes, name=f"returnT_{t}")
+        for t in instance.truck_ids()
+    }
+    return_time_drone = {
+        d: model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, ub=instance.constants.max_shift_minutes, name=f"returnD_{d}")
+        for d in instance.drone_ids()
+    }
     tw_truck = {(t, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, name=f"wT_{t}_{i}") for t in instance.truck_ids() for i in nodes}
     tw_drone = {(d, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, name=f"wD_{d}_{i}") for d in instance.drone_ids() for i in nodes}
     a_bar_truck = {(t, i): model.addVar(vtype=gp.GRB.CONTINUOUS, lb=0.0, name=f"aBarT_{t}_{i}") for t in instance.truck_ids() for i in instance.customer_ids}
@@ -124,13 +149,16 @@ def build_model(instance: InstanceData, config: SearchConfig) -> MilpArtifacts:
         model,
         instance,
         x_truck,
+        x_drone,
         u_truck,
         y_loaded,
         w,
         z1,
         z2,
+        u_sync,
         nodes,
         u_drone,
+        lambda_loaded,
         config.constraints.big_m,
     )
     constraints.add_energy(
@@ -138,7 +166,10 @@ def build_model(instance: InstanceData, config: SearchConfig) -> MilpArtifacts:
         instance,
         x_drone,
         r,
+        r_departure,
         t_empty,
+        lambda_loaded,
+        z2,
         nodes,
         config.constraints.big_m,
     )
@@ -149,6 +180,8 @@ def build_model(instance: InstanceData, config: SearchConfig) -> MilpArtifacts:
         x_drone,
         a_truck,
         a_drone,
+        ready_truck,
+        ready_drone,
         l_truck,
         l_drone,
         tw_truck,
@@ -157,12 +190,16 @@ def build_model(instance: InstanceData, config: SearchConfig) -> MilpArtifacts:
         u_drone,
         z1,
         z2,
+        u_sync,
         t_truck,
         t_empty,
         nodes,
         config.constraints.big_m,
         instance.constants.swap_time_s / 60.0,
         instance.constants.reload_time_s / 60.0,
+        instance.constants.handling_time_s / 60.0,
+        return_time_truck,
+        return_time_drone,
     )
     constraints.add_tardiness_linearization(
         model,
@@ -188,6 +225,9 @@ def build_model(instance: InstanceData, config: SearchConfig) -> MilpArtifacts:
         x_truck,
         x_drone,
         config.constraints.big_m,
+        config.constraints.strict_time_windows,
+        return_time_truck,
+        return_time_drone,
     )
     constraints.add_priority_ordering(
         model,
@@ -215,6 +255,7 @@ def build_model(instance: InstanceData, config: SearchConfig) -> MilpArtifacts:
         u_drone,
         a_bar_truck,
         a_bar_drone,
+        lambda_loaded,
     )
 
     return MilpArtifacts(
@@ -226,13 +267,20 @@ def build_model(instance: InstanceData, config: SearchConfig) -> MilpArtifacts:
             "u_drone": u_drone,
             "z1": z1,
             "z2": z2,
+            "u_sync": u_sync,
             "y_loaded": y_loaded,
+            "lambda_loaded": lambda_loaded,
             "w": w,
             "r": r,
+            "r_departure": r_departure,
             "a_truck": a_truck,
             "a_drone": a_drone,
+            "ready_truck": ready_truck,
+            "ready_drone": ready_drone,
             "l_truck": l_truck,
             "l_drone": l_drone,
+            "return_time_truck": return_time_truck,
+            "return_time_drone": return_time_drone,
             "tw_truck": tw_truck,
             "tw_drone": tw_drone,
             "a_bar_truck": a_bar_truck,

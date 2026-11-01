@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import ceil, inf
-from time import perf_counter
+from time import monotonic, perf_counter
 from typing import Any
 
 import numpy as np
@@ -189,6 +189,8 @@ def evaluate_reverse_reassignment(
     instance: InstanceData,
     solution: SolutionData,
     customer_j: int,
+    *,
+    deadline: float | None = None,
 ) -> ReverseReassignment:
     """Evaluate all feasible truck insertions for one drone-served customer."""
     base = _empty_solution_clone(solution)
@@ -200,8 +202,12 @@ def evaluate_reverse_reassignment(
     best_position: int | None = None
 
     for truck_id in instance.truck_ids():
+        if deadline is not None and monotonic() >= deadline:
+            return ReverseReassignment(solution=None)
         route = list(base.truck_routes.get(truck_id, [0, 0]))
         for position in range(1, len(route)):
+            if deadline is not None and monotonic() >= deadline:
+                return ReverseReassignment(solution=None)
             candidate = _truck_candidate(instance, base, customer_j, truck_id, position)
             _evaluate(instance, candidate)
             if not is_feasible(instance, candidate):
@@ -235,6 +241,8 @@ def priority_aware_truck_insertion(
     instance: InstanceData,
     solution: SolutionData,
     customer_set_R: set[int],
+    *,
+    deadline: float | None = None,
 ) -> InsertionResult:
     """Reinsert rollback customers using priority-aware feasible cheapest insertion."""
     current = _empty_solution_clone(solution)
@@ -252,11 +260,17 @@ def priority_aware_truck_insertion(
     )
     inserted: list[int] = []
     for customer_id in ordered:
+        if deadline is not None and monotonic() >= deadline:
+            return InsertionResult(current, False, tuple(inserted))
         best: SolutionData | None = None
         best_key: tuple[float, float, float, float, float] | None = None
         for truck_id in instance.truck_ids():
+            if deadline is not None and monotonic() >= deadline:
+                return InsertionResult(current, False, tuple(inserted))
             route = list(current.truck_routes.get(truck_id, [0, 0]))
             for position in range(1, len(route)):
+                if deadline is not None and monotonic() >= deadline:
+                    return InsertionResult(current, False, tuple(inserted))
                 candidate = _truck_candidate(instance, current, customer_id, truck_id, position)
                 _evaluate(instance, candidate)
                 if not is_feasible(instance, candidate):
@@ -310,6 +324,7 @@ def _attempt_priority_risk_rollback(
     epsilon_z: float,
     epsilon_h: float,
     epsilon_tail: float,
+    deadline: float | None = None,
 ) -> RollbackAttempt:
     started = perf_counter()
     source = _empty_solution_clone(best)
@@ -317,10 +332,18 @@ def _attempt_priority_risk_rollback(
     before = compute_priority_metrics(instance, source)
     drone_customers = sorted(source.served_by_drone())
     rollback_size = min(max(1, int(size_cap)), int(ceil(0.05 * len(drone_customers))))
-    reverse: dict[int, ReverseReassignment] = {
-        customer_id: evaluate_reverse_reassignment(instance, source, customer_id)
-        for customer_id in drone_customers
-    }
+    reverse: dict[int, ReverseReassignment] = {}
+    timed_out = False
+    for customer_id in drone_customers:
+        if deadline is not None and monotonic() >= deadline:
+            timed_out = True
+            break
+        reverse[customer_id] = evaluate_reverse_reassignment(
+            instance,
+            source,
+            customer_id,
+            deadline=deadline,
+        )
     positive = [
         (customer_id, result)
         for customer_id, result in reverse.items()
@@ -340,12 +363,18 @@ def _attempt_priority_risk_rollback(
             item[0],
         )
     )
-    selected = tuple(customer_id for customer_id, _ in selected_pool[:rollback_size])
-    reconstruction = priority_aware_truck_insertion(instance, source, set(selected)) if selected else None
+    selected = () if timed_out else tuple(customer_id for customer_id, _ in selected_pool[:rollback_size])
+    reconstruction = (
+        priority_aware_truck_insertion(instance, source, set(selected), deadline=deadline)
+        if selected
+        else None
+    )
     accepted = False
     reconstructed = None
     rejection_reason = ""
-    if not selected:
+    if timed_out:
+        rejection_reason = "time_limit"
+    elif not selected:
         rejection_reason = "no_positive_reverse_reassignment"
     elif reconstruction is None or not reconstruction.feasible:
         rejection_reason = "reconstruction_infeasible"

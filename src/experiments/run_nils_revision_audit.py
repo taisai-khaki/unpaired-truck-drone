@@ -71,6 +71,7 @@ def _solution_signature(solution: Any) -> str:
         "u_drone": {str(k): v for k, v in solution.u_drone.items()},
         "z1": {str(k): v for k, v in solution.z1.items()},
         "z2": {str(k): v for k, v in solution.z2.items()},
+        "u_sync": {str(k): v for k, v in solution.u_sync.items()},
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
 

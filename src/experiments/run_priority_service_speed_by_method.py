@@ -15,7 +15,7 @@ import pandas as pd
 from ..distance_utils import euclidean_distance, travel_time_from_distance
 from ..feasibility import is_feasible
 from ..heuristics.nils import _repair_infeasible_solution, evaluate_solution
-from ..heuristics.nils_r import compute_priority_metrics
+from ..timing import active_rendezvous_events, compute_synchronization_waiting
 from ..instance_generator import load_instance_json
 from ..parameters import SearchConfig, load_and_build_config
 from .heuristic_study import _collect_row, _run_method, _scenario_config
@@ -25,13 +25,11 @@ from .run_alns_comparison import _scenario_from_row, _with_alns_settings
 MAIN_METHODS = [
     "truck_only",
     "nils",
-    "nils_r",
 ]
 ALNS_METHOD = "feasibility_aware_alns"
 METHOD_ORDER = {
     "truck_only": ("M1 Truck-only", 1),
     "nils": ("M5 NILS", 5),
-    "nils_r": ("M9 NILS-R", 9),
     ALNS_METHOD: ("M8 Feasibility-aware ALNS", 8),
 }
 ALL_METHODS = MAIN_METHODS + [ALNS_METHOD]
@@ -94,12 +92,12 @@ def _scenario_key(row: pd.Series) -> str:
 def _delivery_times(instance, solution) -> dict[int, float]:
     customer_ids = {customer.node_id for customer in instance.customers}
     delivered: dict[int, float] = {}
-    for (_, customer_id), arrival in solution.a_truck.items():
-        if customer_id in customer_ids:
-            delivered[customer_id] = max(delivered.get(customer_id, 0.0), float(arrival))
-    for (_, customer_id), arrival in solution.a_drone.items():
-        if customer_id in customer_ids:
-            delivered[customer_id] = max(delivered.get(customer_id, 0.0), float(arrival))
+    for (truck_id, customer_id), arrival in solution.a_truck.items():
+        if customer_id in customer_ids and solution.u_truck.get((truck_id, customer_id), 0) >= 0.5:
+            delivered[customer_id] = float(arrival)
+    for (drone_id, customer_id), arrival in solution.a_drone.items():
+        if customer_id in customer_ids and solution.u_drone.get((drone_id, customer_id), 0) >= 0.5:
+            delivered[customer_id] = float(arrival)
     return delivered
 
 
@@ -138,16 +136,13 @@ def _customer_rows(instance, solution, method_name: str) -> list[dict[str, objec
 
 
 def _event_nodes(solution, drone_id: int) -> tuple[object, object, object, object]:
-    launch_events = [
+    events = sorted(
         (node, truck)
-        for (node, drone, truck), value in solution.z1.items()
-        if drone == drone_id and float(value) >= 0.5
-    ]
-    recovery_events = [
-        (node, truck)
-        for (node, drone, truck), value in solution.z2.items()
-        if drone == drone_id and float(value) >= 0.5
-    ]
+        for node, drone, truck in active_rendezvous_events(solution)
+        if drone == drone_id
+    )
+    launch_events = events
+    recovery_events = events
     launch_node, launch_truck = launch_events[0] if launch_events else ("", "")
     recovery_node, recovery_truck = recovery_events[-1] if recovery_events else ("", "")
     return launch_node, recovery_node, launch_truck, recovery_truck
@@ -225,10 +220,12 @@ def _customer_detail_rows(instance, solution, method_name: str, scenario_class_i
                 recovery_type = "same_truck"
             sync_nodes = {customer_id, launch_node, recovery_node}
             sync_wait = float(
-                sum(value for (vehicle, node), value in solution.waiting_truck.items()
-                    if vehicle == launch_truck and node in sync_nodes)
-                + sum(value for (vehicle, node), value in solution.waiting_drone.items()
-                      if vehicle == int(drone_id) and node in sync_nodes)
+                sum(
+                    float(event["total_wait"])
+                    for event in compute_synchronization_waiting(instance, solution)["events"]
+                    if int(event["drone_id"]) == int(drone_id)
+                    and int(event["node"]) in {int(node) for node in sync_nodes if str(node) not in {"", "nan"}}
+                )
             )
         tardiness = max(0.0, delivery_time - deadline) if np.isfinite(delivery_time) else float("nan")
         rows.append(
@@ -307,7 +304,7 @@ def _run_one(
     start = time.time()
     solution = _run_method(instance, scenario_config, method_name)
     solution = _force_feasible_solution(instance, solution, scenario_config, method_name)
-    evaluate_solution(instance, solution)
+    solution.objective, solution.components = evaluate_solution(instance, solution)
     elapsed = time.time() - start
     return solution, elapsed, bool(is_feasible(instance, solution))
 

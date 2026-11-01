@@ -279,7 +279,9 @@ def build_initial_solution(
                 continue
             seen.add(j)
             out.append(j)
-        if out[-1] != 0:
+        if len(out) == 1:
+            out.append(0)
+        elif out[-1] != 0:
             out.append(0)
         cleaned[t] = out
 

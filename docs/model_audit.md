@@ -8,7 +8,7 @@ The implementation follows this structure:
 - Priority-aware tardiness penalties in the objective.
 
 ## 1) Sets
-- N = {0,1,...,n}: node set with depot 0 and customers 1..n.
+- N = {0,1,...,n}: compact implementation node set; the model keeps separate start and return timing/battery states for the depot.
 - V = {1,...,n}: customers.
 - T = {1,...,|T|}: trucks.
 - D = {1,...,|D|}: drones.
@@ -30,10 +30,11 @@ The implementation follows this structure:
 - x_drone[i,j,d] in {0,1}: drone d traverses arc (i,j).
 - u_truck[t,i] in {0,1}: truck t serves customer i.
 - u_drone[d,i] in {0,1}: drone d serves customer i.
-- z1[i,d,t], z2[i,d,t] in {0,1}: synchronization event flags at node i.
-- y_loaded[d,i] in {0,1}: loaded flag for drone d on node i.
+- z1[i,d,t], z2[i,d,t] in {0,1}: parcel-reload and battery-swap event flags at node i.
+- lambda_loaded[i,j,d] in {0,1}: loaded-parcel state on drone arc (i,j).
+- y_loaded[d,i] in {0,1}: loaded-arrival helper at customer i.
 - w[t,i]: truck remaining load after leaving or arriving at i.
-- r[d,i]: drone remaining battery after i.
+- r[d,i], r_departure[d,i]: drone battery on arrival and after node operations.
 - a_truck[t,i], l_truck[t,i]: truck arrival/departure at i.
 - a_drone[d,i], l_drone[d,i]: drone arrival/departure at i.
 - tw_truck[t,i], tw_drone[d,i]: nonnegative waiting helpers.
@@ -44,10 +45,10 @@ The implementation follows this structure:
 - Depot return and route start/end: each used vehicle leaves/returns to depot in one arc count and no self loops.
 - Exclusive service: every customer has exactly one of truck service or drone service.
 - Vehicle continuity: in-degree equals out-degree for every visited node in each vehicle route.
-- Load feasibility: truck load updates with demand and never exceeds truck capacity.
-- Battery feasibility: drone battery updates over each arc and stays nonnegative.
-- Timing consistency: departure times are arrival + service + sync penalties + waiting; arrivals follow travel times.
-- Window and shift constraints: arrivals respect lb/ub via big-M, and all shifts are bounded.
+- Load feasibility: truck load updates with customer deliveries and parcel transfers to drones and never exceeds truck capacity.
+- Battery feasibility: drone battery uses loaded/empty energy, swap restoration, and the residual reserve at every visited node including return.
+- Timing consistency: departure times are arrival + service + reload/swap handling + waiting; arrivals equal the preceding departure plus travel time.
+- Window and shift constraints: service arrivals respect the hard lower bound, tardiness is soft after the upper deadline, and return times are bounded by the shift horizon.
 - Subtour handling: MTZ constraints on customer nodes to block disconnected cycles.
 - Tardiness linearization: tardiness lower bounded by actual arrival minus ub, inactive when customer not served.
 - Priority precedence: high-priority served no later than medium/low where defined.
@@ -58,20 +59,20 @@ The implementation follows this structure:
 
 ## 6) Outputs and validation
 - Extractor saves all binaries, arc variables, assignment matrices, timing, load, battery and objective components.
-- Strict validator checks:
+- Validator checks:
   - all customers served exactly once,
   - service continuity and depot start/end,
   - truck load and drone battery feasibility,
-  - time-window and shift compliance,
+  - hard lower-window and shift compliance, with upper-window tardiness warnings,
   - synchronization consistency,
   - objective component consistency.
 
 ## 7) Ambiguity and TODO log
-The following are model points where manuscript interpretation differs can exist:
-1) exact form of synchronization timing inequalities and whether absolute-time or max-time form is intended.
-2) priority precedence meaning (global order vs weighted fairness), implemented conservatively with feasible precedence constraints.
-3) loaded drone energy model: code uses load-aware cost and conservative battery depletion rate.
-4) subtour prevention method in exact model and whether stronger cuts are expected in the manuscript.
-5) handling of service_time during drone route when assigned after reload/launch events.
+The current implementation decisions are:
+1) synchronization waiting is recorded for diagnostics and propagated through timing helpers, but is not a separate objective term;
+2) priority precedence constraints remain available as an optional strengthening layer, while priority protection is primarily represented by weighted tardiness;
+3) loaded and empty drone energy rates are treated as preprocessed coefficients;
+4) the compact depot index uses separate return-time and departure-battery variables to represent 0+ and 0− states;
+5) the MILP uses MTZ constraints in the available backend; a lazy-cut callback is still a solver-specific optimization rather than a mathematical change.
 
 These are listed in IMPORTANT_QUESTIONS_FOR_AUTHOR.md for author confirmation.

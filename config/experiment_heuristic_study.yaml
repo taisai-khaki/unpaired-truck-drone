@@ -29,12 +29,6 @@ experiment:
   drone_energy_empty_per_min: 15.0
   drone_energy_loaded_per_min: 20.0
   study_reps_per_scenario: 10
-  nils_r_reconstruction_max_attempts: 1
-  nils_r_reconstruction_stagnation: 8
-  nils_r_reconstruction_size_cap: 3
-  nils_r_epsilon_z: 1.0e-6
-  nils_r_epsilon_h: 1.0e-6
-  nils_r_epsilon_tail: 1.0e-6
   study_design: d_optimal
   study_d_optimal_points: 96
   study_d_optimal_restarts: 8
@@ -43,13 +37,11 @@ experiment:
   study_methods:
     - truck_only
     - simple_drone
-    - random_feasible
     - paired_baseline
     - no_unpairing
     - nils
     - nils_no_local_search
     - nils_no_perturbation
-    - nils_no_battery_screening
   study_grid:
     n: [15, 50, 75, 100]
     eligible_share: [0.25, 0.50, 0.75]

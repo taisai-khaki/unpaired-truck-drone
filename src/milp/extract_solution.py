@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Dict, Tuple
 
 from ..data_models import SolutionData, SyncEvent
+from ..timing import compute_synchronization_waiting
 
 
 def _value(var) -> float:
@@ -47,16 +48,32 @@ def extract_solution(instance, artifacts, status: str, runtime_seconds: float = 
         sol.z1[k] = bin01(var)
     for k, var in v["z2"].items():
         sol.z2[k] = bin01(var)
+    for k, var in v.get("u_sync", {}).items():
+        sol.u_sync[k] = bin01(var)
     for k, var in v["y_loaded"].items():
         sol.y_loaded[k] = bin01(var)
     for k, var in v["r"].items():
         sol.battery_drone[k] = _value(var)
+    for k, var in v.get("r_departure", {}).items():
+        sol.__dict__.setdefault("battery_departure", {})[k] = _value(var)
+    sol.__dict__["return_time_truck"] = {
+        k: _value(var) for k, var in v.get("return_time_truck", {}).items()
+    }
+    sol.__dict__["return_time_drone"] = {
+        k: _value(var) for k, var in v.get("return_time_drone", {}).items()
+    }
     for k, var in v["a_truck"].items():
         sol.a_truck[k] = _value(var)
     for k, var in v["l_truck"].items():
         sol.l_truck[k] = _value(var)
     for k, var in v["a_drone"].items():
         sol.a_drone[k] = _value(var)
+    sol.__dict__["ready_truck"] = {
+        k: _value(var) for k, var in v.get("ready_truck", {}).items()
+    }
+    sol.__dict__["ready_drone"] = {
+        k: _value(var) for k, var in v.get("ready_drone", {}).items()
+    }
     for k, var in v["l_drone"].items():
         sol.l_drone[k] = _value(var)
     for k, var in v["tw_truck"].items():
@@ -68,6 +85,14 @@ def extract_solution(instance, artifacts, status: str, runtime_seconds: float = 
     for k, var in v["tardiness"].items():
         sol.tardiness[k] = _value(var)
 
+    # The MILP waiting variables are lower-bound auxiliaries.  Published
+    # diagnostics must be recomputed from readiness in the extracted schedule.
+    sync_diagnostics = compute_synchronization_waiting(instance, sol)
+    sol.waiting_truck = dict(sync_diagnostics["waiting_truck"])
+    sol.waiting_drone = dict(sync_diagnostics["waiting_drone"])
+    sol.__dict__["ready_truck"] = dict(sync_diagnostics["readiness_truck"])
+    sol.__dict__["ready_drone"] = dict(sync_diagnostics["readiness_drone"])
+
     trucks = [t.truck_id for t in instance.trucks]
     drones = [d.drone_id for d in instance.drones]
 
@@ -76,6 +101,9 @@ def extract_solution(instance, artifacts, status: str, runtime_seconds: float = 
             for t in trucks:
                 z1_val = sol.z1.get((i, d, t), 0)
                 z2_val = sol.z2.get((i, d, t), 0)
+                u_sync_val = sol.u_sync.get((i, d, t), 0)
+                if u_sync_val > 0:
+                    sol.sync_events.append(SyncEvent(i, d, t, "physical_rendezvous"))
                 if z1_val > 0:
                     sol.sync_events.append(SyncEvent(i, d, t, "parcel_reload"))
                 if z2_val > 0:

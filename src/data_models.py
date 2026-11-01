@@ -104,12 +104,13 @@ class ProblemConstants:
 
     swap_time_s: float = 60.0
     reload_time_s: float = 60.0
+    handling_time_s: float = 60.0
     max_shift_minutes: float = 480.0
     big_m: float = 10_000.0
 
     def __post_init__(self) -> None:
-        if self.swap_time_s < 0 or self.reload_time_s < 0:
-            raise ValueError("Swap and reload times must be non-negative")
+        if self.swap_time_s < 0 or self.reload_time_s < 0 or self.handling_time_s < 0:
+            raise ValueError("Swap, reload, and rendezvous handling times must be non-negative")
         if self.max_shift_minutes <= 0:
             raise ValueError("max_shift_minutes must be positive")
         if self.big_m <= 0:
@@ -312,6 +313,7 @@ class SolutionData:
 
     z1: Dict[Tuple[int, int, int], int] = field(default_factory=dict)
     z2: Dict[Tuple[int, int, int], int] = field(default_factory=dict)
+    u_sync: Dict[Tuple[int, int, int], int] = field(default_factory=dict)
     y_loaded: Dict[Tuple[int, int], int] = field(default_factory=dict)
 
     a_truck: Dict[Tuple[int, int], float] = field(default_factory=dict)

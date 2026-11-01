@@ -55,7 +55,7 @@ def add_service_and_flow(
     u_drone: Dict[Tuple[int, int], Var],
     nodes: list[int],
 ) -> None:
-    """Customer service exclusivity, incoming/outgoing flow, and node conservation."""
+    """Customer service, visit, and route-flow constraints."""
     customers = _customer_nodes(nodes)
     for j in customers:
         model.addConstr(
@@ -64,24 +64,34 @@ def add_service_and_flow(
             == 1,
             name=f"exclusive_service_{j}",
         )
+        truck_visits = []
+        drone_visits = []
         for t in instance.truck_ids():
+            incoming = gp.quicksum(x_truck[(i, j, t)] for i in nodes if i != j)
+            outgoing = gp.quicksum(x_truck[(j, i, t)] for i in nodes if i != j)
+            truck_visits.append(incoming)
             model.addConstr(
-                gp.quicksum(x_truck[(i, j, t)] for i in nodes if i != j) == u_truck[(t, j)],
+                incoming == outgoing,
                 name=f"truck_in_{t}_{j}",
             )
             model.addConstr(
-                gp.quicksum(x_truck[(j, i, t)] for i in nodes if i != j) == u_truck[(t, j)],
+                u_truck[(t, j)] <= incoming,
                 name=f"truck_out_{t}_{j}",
             )
         for d in instance.drone_ids():
+            incoming = gp.quicksum(x_drone[(i, j, d)] for i in nodes if i != j)
+            outgoing = gp.quicksum(x_drone[(j, i, d)] for i in nodes if i != j)
+            drone_visits.append(incoming)
             model.addConstr(
-                gp.quicksum(x_drone[(i, j, d)] for i in nodes if i != j) == u_drone[(d, j)],
+                incoming == outgoing,
                 name=f"drone_in_{d}_{j}",
             )
             model.addConstr(
-                gp.quicksum(x_drone[(j, i, d)] for i in nodes if i != j) == u_drone[(d, j)],
+                u_drone[(d, j)] <= incoming,
                 name=f"drone_out_{d}_{j}",
             )
+        model.addConstr(gp.quicksum(truck_visits) <= 1, name=f"truck_visit_once_{j}")
+        model.addConstr(gp.quicksum(drone_visits) <= 1, name=f"drone_visit_once_{j}")
 
     for t in instance.truck_ids():
         for i in nodes:
@@ -103,20 +113,29 @@ def add_demand_and_load(
     model,
     instance: InstanceData,
     x_truck: Dict[Tuple[int, int, int], Var],
+    x_drone: Dict[Tuple[int, int, int], Var],
     u_truck: Dict[Tuple[int, int], Var],
     y_loaded: Dict[Tuple[int, int], Var],
     w: Dict[Tuple[int, int], Var],
     z1: Dict[Tuple[int, int, int], Var],
     z2: Dict[Tuple[int, int, int], Var],
+    u_sync: Dict[Tuple[int, int, int], Var],
     nodes: list[int],
     u_drone: Dict[Tuple[int, int], Var],
+    lambda_loaded: Dict[Tuple[int, int, int], Var],
     big_m: float,
 ) -> None:
-    """Truck load flow and synchronization indicator relations."""
+    """Truck inventory, drone parcel state, and synchronization links."""
     customers = _customer_nodes(nodes)
+    for d in instance.drone_ids():
+        for t in instance.truck_ids():
+            model.addConstr(z1[(0, d, t)] == 0, name=f"no_depot_reload_{d}_{t}")
+            model.addConstr(z2[(0, d, t)] == 0, name=f"no_depot_swap_{d}_{t}")
+            model.addConstr(u_sync[(0, d, t)] == 0, name=f"no_depot_rendezvous_{d}_{t}")
     for t in instance.truck_ids():
         truck = instance.trucks[t - 1]
-        model.addConstr(w[(t, 0)] == truck.capacity_kg, name=f"truck_load_start_{t}")
+        route_use = gp.quicksum(x_truck[(0, j, t)] for j in customers)
+        model.addConstr(w[(t, 0)] == truck.capacity_kg * route_use, name=f"truck_load_start_{t}")
         for j in nodes:
             model.addConstr(w[(t, j)] >= 0.0, name=f"truck_load_nonneg_{t}_{j}")
             model.addConstr(w[(t, j)] <= truck.capacity_kg, name=f"truck_load_cap_{t}_{j}")
@@ -125,33 +144,67 @@ def add_demand_and_load(
                 if i == j:
                     continue
                 demand_j = instance.customer_map()[j].demand_kg
+                reload_weight = gp.quicksum(
+                    instance.drones[d - 1].parcel_weight_kg * z1[(j, d, t)]
+                    for d in instance.drone_ids()
+                )
+                inventory_change = demand_j * u_truck[(t, j)] + reload_weight
                 model.addConstr(
                     w[(t, j)]
-                    <= w[(t, i)] - demand_j * x_truck[(i, j, t)] + big_m * (1 - x_truck[(i, j, t)]),
+                    <= w[(t, i)] - inventory_change + big_m * (1 - x_truck[(i, j, t)]),
                     name=f"truck_load_ub_{t}_{i}_{j}",
                 )
                 model.addConstr(
                     w[(t, j)]
-                    >= w[(t, i)] - demand_j * x_truck[(i, j, t)] - big_m * (1 - x_truck[(i, j, t)]),
+                    >= w[(t, i)] - inventory_change - big_m * (1 - x_truck[(i, j, t)]),
                     name=f"truck_load_lb_{t}_{i}_{j}",
                 )
 
     for d in instance.drone_ids():
         for i in customers:
-            model.addConstr(y_loaded[(d, i)] <= u_drone[(d, i)], name=f"loaded_ub_{d}_{i}")
-            model.addConstr(y_loaded[(d, i)] >= 0.0, name=f"loaded_lb_{d}_{i}")
+            model.addConstr(
+                instance.customer_map()[i].demand_kg * u_drone[(d, i)] <= instance.drones[d - 1].capacity_kg,
+                name=f"drone_payload_{d}_{i}",
+            )
+            incoming_loaded = gp.quicksum(lambda_loaded[(h, i, d)] for h in nodes if h != i)
+            outgoing_loaded = gp.quicksum(lambda_loaded[(i, j, d)] for j in nodes if j != i)
+            model.addConstr(y_loaded[(d, i)] == incoming_loaded, name=f"loaded_arrival_{d}_{i}")
+            model.addConstr(u_drone[(d, i)] <= incoming_loaded, name=f"loaded_service_{d}_{i}")
+            model.addConstr(
+                outgoing_loaded == incoming_loaded - u_drone[(d, i)] + gp.quicksum(z1[(i, d, t)] for t in instance.truck_ids()),
+                name=f"loaded_flow_{d}_{i}",
+            )
             for t in instance.truck_ids():
-                model.addConstr(z1[(i, d, t)] <= u_truck[(t, i)], name=f"z1_truck_{i}_{d}_{t}")
-                model.addConstr(z1[(i, d, t)] <= u_drone[(d, i)], name=f"z1_drone_{i}_{d}_{t}")
+                truck_visit = gp.quicksum(x_truck[(h, i, t)] for h in nodes if h != i)
+                drone_visit = gp.quicksum(x_drone[(h, i, d)] for h in nodes if h != i)
+                model.addConstr(u_sync[(i, d, t)] <= truck_visit, name=f"usync_truck_visit_{i}_{d}_{t}")
+                model.addConstr(u_sync[(i, d, t)] <= drone_visit, name=f"usync_drone_visit_{i}_{d}_{t}")
                 model.addConstr(
-                    z1[(i, d, t)] >= u_truck[(t, i)] + u_drone[(d, i)] - 1,
-                    name=f"z1_lb_{i}_{d}_{t}",
+                    u_sync[(i, d, t)] >= truck_visit + drone_visit - 1,
+                    name=f"usync_joint_visit_{i}_{d}_{t}",
                 )
-                model.addConstr(z2[(i, d, t)] <= u_truck[(t, i)], name=f"z2_truck_{i}_{d}_{t}")
-                model.addConstr(z2[(i, d, t)] <= u_drone[(d, i)], name=f"z2_drone_{i}_{d}_{t}")
+                model.addConstr(z1[(i, d, t)] <= u_sync[(i, d, t)], name=f"z1_usync_link_{i}_{d}_{t}")
+                model.addConstr(z2[(i, d, t)] <= u_sync[(i, d, t)], name=f"z2_usync_link_{i}_{d}_{t}")
+                model.addConstr(z1[(i, d, t)] <= truck_visit, name=f"z1_truck_visit_{i}_{d}_{t}")
+                model.addConstr(z1[(i, d, t)] <= drone_visit, name=f"z1_drone_visit_{i}_{d}_{t}")
+                model.addConstr(z2[(i, d, t)] <= truck_visit, name=f"z2_truck_visit_{i}_{d}_{t}")
+                model.addConstr(z2[(i, d, t)] <= drone_visit, name=f"z2_drone_visit_{i}_{d}_{t}")
+            model.addConstr(
+                gp.quicksum(z1[(i, d, t)] for t in instance.truck_ids()) <= 1,
+                name=f"sync_one_reload_truck_{i}_{d}",
+            )
+            model.addConstr(
+                gp.quicksum(z2[(i, d, t)] for t in instance.truck_ids()) <= 1,
+                name=f"sync_one_swap_truck_{i}_{d}",
+            )
+
+        for i in nodes:
+            for j in nodes:
+                if i == j:
+                    continue
                 model.addConstr(
-                    z2[(i, d, t)] >= u_truck[(t, i)] + u_drone[(d, i)] - 1,
-                    name=f"z2_lb_{i}_{d}_{t}",
+                    lambda_loaded[(i, j, d)] <= x_drone[(i, j, d)],
+                    name=f"loaded_arc_link_{d}_{i}_{j}",
                 )
 
 
@@ -160,30 +213,63 @@ def add_energy(
     instance: InstanceData,
     x_drone: Dict[Tuple[int, int, int], Var],
     r: Dict[Tuple[int, int], Var],
+    r_departure: Dict[Tuple[int, int], Var],
     t_empty: Dict[Tuple[int, int, int], float],
+    lambda_loaded: Dict[Tuple[int, int, int], Var],
+    z2: Dict[Tuple[int, int, int], Var],
     nodes: list[int],
     big_m: float,
 ) -> None:
-    """Drone energy propagation with conservative loaded/empty split."""
+    """Propagate arrival/departure battery states with loaded-flight energy."""
     for d in instance.drone_ids():
         drone = instance.drones[d - 1]
-        consumption = max(drone.energy_per_min_when_empty, drone.energy_per_min_when_loaded)
         model.addConstr(r[(d, 0)] == drone.max_battery_wh, name=f"drone_batt_start_{d}")
         for j in nodes:
             model.addConstr(r[(d, j)] >= 0.0, name=f"drone_batt_nonneg_{d}_{j}")
             model.addConstr(r[(d, j)] <= drone.max_battery_wh, name=f"drone_batt_cap_{d}_{j}")
+            model.addConstr(r_departure[(d, j)] >= 0.0, name=f"drone_batt_dep_nonneg_{d}_{j}")
+            model.addConstr(r_departure[(d, j)] <= drone.max_battery_wh, name=f"drone_batt_dep_cap_{d}_{j}")
+        model.addConstr(r_departure[(d, 0)] == drone.max_battery_wh, name=f"drone_batt_start_depart_{d}")
+        reserve = max(0.0, min(1.0, float(instance.metadata.get("battery_slack_ratio", 0.10)))) * drone.max_battery_wh
         for i in nodes:
             for j in nodes:
-                if i == j or j == 0:
+                if i == j:
                     continue
+                energy = t_empty[(i, j, d)] * (
+                    drone.energy_per_min_when_empty
+                    + (drone.energy_per_min_when_loaded - drone.energy_per_min_when_empty) * lambda_loaded[(i, j, d)]
+                )
+                swap_at_i = gp.quicksum(z2[(i, d, t)] for t in instance.truck_ids()) if i != 0 else 0.0
                 model.addConstr(
-                    r[(d, j)] <= r[(d, i)] - consumption * t_empty[(i, j, d)] + big_m * (1 - x_drone[(i, j, d)]),
-                    name=f"drone_batt_ub_{d}_{i}_{j}",
+                    r_departure[(d, i)] <= r[(d, i)] + drone.max_battery_wh * swap_at_i + big_m * (1 - swap_at_i),
+                    name=f"drone_batt_depart_ub_{d}_{i}_{j}",
                 )
                 model.addConstr(
-                    r[(d, j)] >= r[(d, i)] - consumption * t_empty[(i, j, d)] - big_m * (1 - x_drone[(i, j, d)]),
-                    name=f"drone_batt_lb_{d}_{i}_{j}",
+                    r_departure[(d, i)] >= r[(d, i)] - big_m * swap_at_i,
+                    name=f"drone_batt_depart_lb_{d}_{i}_{j}",
                 )
+                if j != 0:
+                    model.addConstr(
+                        r[(d, j)] <= r_departure[(d, i)] - energy + big_m * (1 - x_drone[(i, j, d)]),
+                        name=f"drone_batt_ub_{d}_{i}_{j}",
+                    )
+                    model.addConstr(
+                        r[(d, j)] >= r_departure[(d, i)] - energy - big_m * (1 - x_drone[(i, j, d)]),
+                        name=f"drone_batt_lb_{d}_{i}_{j}",
+                    )
+                    model.addConstr(
+                        r[(d, j)] >= reserve - big_m * (1 - x_drone[(i, j, d)]),
+                        name=f"drone_batt_reserve_{d}_{i}_{j}",
+                    )
+                else:
+                    model.addConstr(
+                        r_departure[(d, i)] - energy >= reserve - big_m * (1 - x_drone[(i, j, d)]),
+                        name=f"drone_batt_return_reserve_{d}_{i}",
+                    )
+        for i in instance.customer_ids:
+            swap_at_i = gp.quicksum(z2[(i, d, t)] for t in instance.truck_ids())
+            model.addConstr(r_departure[(d, i)] >= drone.max_battery_wh * swap_at_i, name=f"drone_batt_swap_lb_{d}_{i}")
+            model.addConstr(r_departure[(d, i)] <= r[(d, i)] + drone.max_battery_wh * swap_at_i, name=f"drone_batt_swap_ub_{d}_{i}")
 
 
 def add_timing(
@@ -193,6 +279,8 @@ def add_timing(
     x_drone: Dict[Tuple[int, int, int], Var],
     a_truck: Dict[Tuple[int, int], Var],
     a_drone: Dict[Tuple[int, int], Var],
+    ready_truck: Dict[Tuple[int, int], Var],
+    ready_drone: Dict[Tuple[int, int], Var],
     l_truck: Dict[Tuple[int, int], Var],
     l_drone: Dict[Tuple[int, int], Var],
     tw_truck: Dict[Tuple[int, int], Var],
@@ -201,12 +289,16 @@ def add_timing(
     u_drone: Dict[Tuple[int, int], Var],
     z1: Dict[Tuple[int, int, int], Var],
     z2: Dict[Tuple[int, int, int], Var],
+    u_sync: Dict[Tuple[int, int, int], Var],
     t_truck: Dict[Tuple[int, int, int], float],
     t_empty: Dict[Tuple[int, int, int], float],
     nodes: list[int],
     big_m: float,
     swap_time_min: float,
     reload_time_min: float,
+    handling_time_min: float,
+    return_time_truck: Dict[int, Var],
+    return_time_drone: Dict[int, Var],
 ) -> None:
     customers = _customer_nodes(nodes)
     for t in instance.truck_ids():
@@ -216,9 +308,14 @@ def add_timing(
         for i in nodes:
             service_i = instance.customer(i).service_time_min if i != 0 else 0.0
             model.addConstr(
+                ready_truck[(t, i)] == a_truck[(t, i)] + service_i * u_truck.get((t, i), 0.0),
+                name=f"truck_ready_{t}_{i}",
+            )
+            model.addConstr(
                 l_truck[(t, i)]
                 >= a_truck[(t, i)]
                 + service_i * u_truck.get((t, i), 0.0)
+                + 2.0 * handling_time_min * gp.quicksum(u_sync[(i, d, t)] for d in instance.drone_ids())
                 + reload_time_min * gp.quicksum(z1[(i, d, t)] for d in instance.drone_ids())
                 + swap_time_min * gp.quicksum(z2[(i, d, t)] for d in instance.drone_ids())
                 + tw_truck[(t, i)],
@@ -233,7 +330,17 @@ def add_timing(
         for i in nodes:
             service_i = instance.customer(i).service_time_min if i != 0 else 0.0
             model.addConstr(
-                l_drone[(d, i)] >= a_drone[(d, i)] + service_i * u_drone.get((d, i), 0.0) + tw_drone[(d, i)],
+                ready_drone[(d, i)] == a_drone[(d, i)] + service_i * u_drone.get((d, i), 0.0),
+                name=f"drone_ready_{d}_{i}",
+            )
+            model.addConstr(
+                l_drone[(d, i)]
+                >= a_drone[(d, i)]
+                + service_i * u_drone.get((d, i), 0.0)
+                + 2.0 * handling_time_min * gp.quicksum(u_sync[(i, d, t)] for t in instance.truck_ids())
+                + reload_time_min * gp.quicksum(z1[(i, d, t)] for t in instance.truck_ids())
+                + swap_time_min * gp.quicksum(z2[(i, d, t)] for t in instance.truck_ids())
+                + tw_drone[(d, i)],
                 name=f"drone_depart_{d}_{i}",
             )
             model.addConstr(tw_drone[(d, i)] >= 0.0, name=f"drone_wait_nonneg_{d}_{i}")
@@ -241,39 +348,63 @@ def add_timing(
     for t in instance.truck_ids():
         for i in nodes:
             for j in nodes:
-                if i == j or j == 0:
+                if i == j:
                     continue
-                model.addConstr(
-                    l_truck[(t, i)] + t_truck[(i, j, t)] - big_m * (1 - x_truck[(i, j, t)])
-                    <= a_truck[(t, j)],
-                    name=f"truck_arrival_lb_{t}_{i}_{j}",
-                )
+                if j == 0:
+                    model.addConstr(
+                        return_time_truck[t] >= l_truck[(t, i)] + t_truck[(i, j, t)] - big_m * (1 - x_truck[(i, j, t)]),
+                        name=f"truck_return_lb_{t}_{i}",
+                    )
+                    model.addConstr(
+                        return_time_truck[t] <= l_truck[(t, i)] + t_truck[(i, j, t)] + big_m * (1 - x_truck[(i, j, t)]),
+                        name=f"truck_return_ub_{t}_{i}",
+                    )
+                else:
+                    model.addConstr(
+                        l_truck[(t, i)] + t_truck[(i, j, t)] - big_m * (1 - x_truck[(i, j, t)])
+                        <= a_truck[(t, j)],
+                        name=f"truck_arrival_lb_{t}_{i}_{j}",
+                    )
+                    model.addConstr(
+                        a_truck[(t, j)] <= l_truck[(t, i)] + t_truck[(i, j, t)] + big_m * (1 - x_truck[(i, j, t)]),
+                        name=f"truck_arrival_ub_{t}_{i}_{j}",
+                    )
 
     for d in instance.drone_ids():
         for i in nodes:
             for j in nodes:
-                if i == j or j == 0:
+                if i == j:
                     continue
-                model.addConstr(
-                    l_drone[(d, i)] + t_empty[(i, j, d)] - big_m * (1 - x_drone[(i, j, d)])
-                    <= a_drone[(d, j)],
-                    name=f"drone_arrival_lb_{d}_{i}_{j}",
-                )
+                if j == 0:
+                    model.addConstr(
+                        return_time_drone[d] >= l_drone[(d, i)] + t_empty[(i, j, d)] - big_m * (1 - x_drone[(i, j, d)]),
+                        name=f"drone_return_lb_{d}_{i}",
+                    )
+                    model.addConstr(
+                        return_time_drone[d] <= l_drone[(d, i)] + t_empty[(i, j, d)] + big_m * (1 - x_drone[(i, j, d)]),
+                        name=f"drone_return_ub_{d}_{i}",
+                    )
+                else:
+                    model.addConstr(
+                        l_drone[(d, i)] + t_empty[(i, j, d)] - big_m * (1 - x_drone[(i, j, d)])
+                        <= a_drone[(d, j)],
+                        name=f"drone_arrival_lb_{d}_{i}_{j}",
+                    )
+                    model.addConstr(
+                        a_drone[(d, j)] <= l_drone[(d, i)] + t_empty[(i, j, d)] + big_m * (1 - x_drone[(i, j, d)]),
+                        name=f"drone_arrival_ub_{d}_{i}_{j}",
+                    )
 
     for i in customers:
         for d in instance.drone_ids():
-            model.addConstr(
-                gp.quicksum(z1[(i, d, t)] + z2[(i, d, t)] for t in instance.truck_ids()) <= 1,
-                name=f"sync_single_truck_{i}_{d}",
-            )
             for t in instance.truck_ids():
                 model.addConstr(
-                    a_truck[(t, i)] - a_drone[(d, i)] <= swap_time_min + big_m * (1 - z1[(i, d, t)]),
-                    name=f"sync_load_plus_{d}_{t}_{i}",
+                    tw_truck[(t, i)] >= ready_drone[(d, i)] - ready_truck[(t, i)] - big_m * (1 - u_sync[(i, d, t)]),
+                    name=f"sync_wait_truck_{d}_{t}_{i}",
                 )
                 model.addConstr(
-                    a_drone[(d, i)] - a_truck[(t, i)] <= reload_time_min + big_m * (1 - z2[(i, d, t)]),
-                    name=f"sync_load_minus_{d}_{t}_{i}",
+                    tw_drone[(d, i)] >= ready_truck[(t, i)] - ready_drone[(d, i)] - big_m * (1 - u_sync[(i, d, t)]),
+                    name=f"sync_wait_drone_{d}_{t}_{i}",
                 )
 
 
@@ -362,22 +493,33 @@ def add_time_windows_and_shifts(
     x_truck: Dict[Tuple[int, int, int], Var],
     x_drone: Dict[Tuple[int, int, int], Var],
     big_m: float = 10_000.0,
+    enforce_hard_upper_windows: bool = False,
+    return_time_truck: Dict[int, Var] | None = None,
+    return_time_drone: Dict[int, Var] | None = None,
 ) -> None:
     customers = _customer_nodes(nodes)
     for i in customers:
         c = instance.customer_map()[i]
         for t in instance.truck_ids():
-            model.addConstr(a_truck[(t, i)] <= c.ub + big_m * (1 - u_truck[(t, i)]), name=f"tw_truck_ub_{t}_{i}")
+            if enforce_hard_upper_windows:
+                model.addConstr(a_truck[(t, i)] <= c.ub + big_m * (1 - u_truck[(t, i)]), name=f"tw_truck_ub_{t}_{i}")
             model.addConstr(a_truck[(t, i)] >= c.lb - big_m * (1 - u_truck[(t, i)]), name=f"tw_truck_lb_{t}_{i}")
         for d in instance.drone_ids():
-            model.addConstr(a_drone[(d, i)] <= c.ub + big_m * (1 - u_drone[(d, i)]), name=f"tw_drone_ub_{d}_{i}")
+            if enforce_hard_upper_windows:
+                model.addConstr(a_drone[(d, i)] <= c.ub + big_m * (1 - u_drone[(d, i)]), name=f"tw_drone_ub_{d}_{i}")
             model.addConstr(a_drone[(d, i)] >= c.lb - big_m * (1 - u_drone[(d, i)]), name=f"tw_drone_lb_{d}_{i}")
 
     shift_limit = instance.constants.max_shift_minutes
     for t in instance.truck_ids():
-        model.addConstr(gp.quicksum(a_truck[(t, i)] for i in customers) <= shift_limit, name=f"truck_shift_{t}")
+        if return_time_truck is not None:
+            model.addConstr(return_time_truck[t] <= shift_limit, name=f"truck_shift_{t}")
+        else:
+            model.addConstr(gp.quicksum(a_truck[(t, i)] for i in customers) <= shift_limit, name=f"truck_shift_{t}")
     for d in instance.drone_ids():
-        model.addConstr(gp.quicksum(a_drone[(d, i)] for i in customers) <= shift_limit, name=f"drone_shift_{d}")
+        if return_time_drone is not None:
+            model.addConstr(return_time_drone[d] <= shift_limit, name=f"drone_shift_{d}")
+        else:
+            model.addConstr(gp.quicksum(a_drone[(d, i)] for i in customers) <= shift_limit, name=f"drone_shift_{d}")
 
     if enforce_subtours:
         _mtz_subtour(model, instance, x_truck, nodes, "T", big_m)

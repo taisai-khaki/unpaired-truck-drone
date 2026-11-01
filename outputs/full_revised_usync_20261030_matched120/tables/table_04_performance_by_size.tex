@@ -1,0 +1,16 @@
+% tab:by_size
+% Performance by problem size
+\begin{tabular}{rlrrrrrrrr}
+\toprule
+n & method_name & n_runs & feasible_runs & feasibility_rate & avg_cpu_time & objective & reported_runs & improvement_vs_truck_only & reporting_inclusion_rate \\
+\midrule
+15 & nils & 230 & 230 & 1.0000 & 14.6437 & 427.6970 & 230 & 73.4540 & 1.0000 \\
+15 & truck_only & 230 & 230 & 1.0000 & 0.0059 & 6196.5232 & 230 & NaN & 1.0000 \\
+50 & nils & 210 & 210 & 1.0000 & 111.7310 & 48795.9232 & 210 & 71.5072 & 1.0000 \\
+50 & truck_only & 210 & 200 & 0.9524 & 0.0139 & 124242.8213 & 200 & NaN & 0.9524 \\
+75 & nils & 90 & 90 & 1.0000 & 121.5336 & 126597.3495 & 90 & 0.0000 & 1.0000 \\
+75 & truck_only & 90 & 52 & 0.5778 & 0.0486 & 116080.1578 & 52 & NaN & 0.5778 \\
+100 & nils & 190 & 190 & 1.0000 & 121.7336 & 339111.5016 & 190 & 0.0000 & 1.0000 \\
+100 & truck_only & 190 & 1 & 0.0053 & 0.0997 & 107565.6147 & 1 & NaN & 0.0053 \\
+\bottomrule
+\end{tabular}

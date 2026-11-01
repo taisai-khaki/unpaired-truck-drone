@@ -1,0 +1,13 @@
+[08:40:09] heuristic study start | scenarios=72 | reps=10 | methods=['truck_only', 'nils', 'feasibility_aware_alns', 'nils_r'] | design=d_optimal | reporting_policy=feasible_only
+[08:40:09] checkpoint=outputs\full_revised_usync_20261030_matched120\checkpoints\heuristic_study_rows.jsonl | restored_rows=0 | resume_instances=True | chunk_limit=1
+[08:40:09] [1/72] scenario=S0001 n=15 drones=1 eligible=0.25 end=low ratio=1.25 handling=short spatial=clustered pweights=moderate beta=0.10
+[08:40:18]   S0001_R01 | method=truck_only | start
+[08:40:18]   S0001_R01 | method=truck_only | done obj=64.1523 time=0.01s
+[08:40:18]   S0001_R01 | method=nils | start
+[08:40:19]   S0001_R01 | method=nils | done obj=53.7062 time=1.30s
+[08:40:19]   S0001_R01 | method=feasibility_aware_alns | start
+[08:40:22]   S0001_R01 | method=feasibility_aware_alns | done obj=46.7022 time=3.20s
+[08:40:22]   S0001_R01 | method=nils_r | start
+[08:40:24]   S0001_R01 | method=nils_r | done obj=53.7062 time=1.38s
+[08:40:24] study chunk limit reached after 1 new instances
+[08:40:32] heuristic study complete

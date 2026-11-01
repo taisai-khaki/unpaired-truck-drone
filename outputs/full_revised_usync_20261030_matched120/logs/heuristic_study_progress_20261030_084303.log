@@ -1,0 +1,94 @@
+[08:43:53] heuristic study start | scenarios=72 | reps=10 | methods=['truck_only', 'nils', 'feasibility_aware_alns', 'nils_r'] | design=d_optimal | reporting_policy=feasible_only
+[08:43:53] checkpoint=outputs\full_revised_usync_20261030_matched120\checkpoints\heuristic_study_rows.jsonl | restored_rows=8 | resume_instances=True | chunk_limit=10
+[08:43:53] [1/72] scenario=S0001 n=15 drones=1 eligible=0.25 end=low ratio=1.25 handling=short spatial=clustered pweights=moderate beta=0.10
+[08:43:53]   S0001_R01 | method=truck_only | checkpoint-skip
+[08:43:53]   S0001_R01 | method=nils | checkpoint-skip
+[08:43:53]   S0001_R01 | method=feasibility_aware_alns | checkpoint-skip
+[08:43:53]   S0001_R01 | method=nils_r | checkpoint-skip
+[08:43:53]   S0001_R02 | method=truck_only | checkpoint-skip
+[08:43:53]   S0001_R02 | method=nils | checkpoint-skip
+[08:43:53]   S0001_R02 | method=feasibility_aware_alns | checkpoint-skip
+[08:43:53]   S0001_R02 | method=nils_r | checkpoint-skip
+[08:44:02]   S0001_R03 | method=truck_only | start
+[08:44:02]   S0001_R03 | method=truck_only | done obj=1225.5851 time=0.04s
+[08:44:02]   S0001_R03 | method=nils | start
+[08:44:19]   S0001_R03 | method=nils | done obj=114.6837 time=16.95s
+[08:44:19]   S0001_R03 | method=feasibility_aware_alns | start
+[08:44:21]   S0001_R03 | method=feasibility_aware_alns | done obj=334.9189 time=2.35s
+[08:44:21]   S0001_R03 | method=nils_r | start
+[08:44:32]   S0001_R03 | method=nils_r | done obj=114.6837 time=10.47s
+[08:44:40]   S0001_R04 | method=truck_only | start
+[08:44:40]   S0001_R04 | method=truck_only | done obj=2017.6627 time=0.00s
+[08:44:40]   S0001_R04 | method=nils | start
+[08:44:42]   S0001_R04 | method=nils | done obj=51.7026 time=1.96s
+[08:44:42]   S0001_R04 | method=feasibility_aware_alns | start
+[08:44:44]   S0001_R04 | method=feasibility_aware_alns | done obj=47.9339 time=2.48s
+[08:44:44]   S0001_R04 | method=nils_r | start
+[08:44:47]   S0001_R04 | method=nils_r | done obj=51.7026 time=2.25s
+[08:44:55]   S0001_R05 | method=truck_only | start
+[08:44:55]   S0001_R05 | method=truck_only | done obj=3007.4661 time=0.01s
+[08:44:55]   S0001_R05 | method=nils | start
+[08:45:12]   S0001_R05 | method=nils | done obj=117.4373 time=16.93s
+[08:45:12]   S0001_R05 | method=feasibility_aware_alns | start
+[08:45:14]   S0001_R05 | method=feasibility_aware_alns | done obj=417.8991 time=2.62s
+[08:45:14]   S0001_R05 | method=nils_r | start
+[08:45:33]   S0001_R05 | method=nils_r | done obj=117.4373 time=18.93s
+[08:45:41]   S0001_R06 | method=truck_only | start
+[08:45:41]   S0001_R06 | method=truck_only | done obj=1012.8051 time=0.01s
+[08:45:41]   S0001_R06 | method=nils | start
+[08:45:46]   S0001_R06 | method=nils | done obj=51.9981 time=4.37s
+[08:45:46]   S0001_R06 | method=feasibility_aware_alns | start
+[08:45:50]   S0001_R06 | method=feasibility_aware_alns | done obj=46.3900 time=3.83s
+[08:45:50]   S0001_R06 | method=nils_r | start
+[08:45:57]   S0001_R06 | method=nils_r | done obj=46.3900 time=7.66s
+[08:46:05]   S0001_R07 | method=truck_only | start
+[08:46:05]   S0001_R07 | method=truck_only | done obj=4190.9861 time=0.01s
+[08:46:05]   S0001_R07 | method=nils | start
+[08:46:15]   S0001_R07 | method=nils | done obj=56.3004 time=10.15s
+[08:46:15]   S0001_R07 | method=feasibility_aware_alns | start
+[08:46:19]   S0001_R07 | method=feasibility_aware_alns | done obj=49.8324 time=3.09s
+[08:46:19]   S0001_R07 | method=nils_r | start
+[08:46:28]   S0001_R07 | method=nils_r | done obj=56.3004 time=9.46s
+[08:46:36]   S0001_R08 | method=truck_only | start
+[08:46:36]   S0001_R08 | method=truck_only | done obj=2237.8341 time=0.00s
+[08:46:36]   S0001_R08 | method=nils | start
+[08:46:44]   S0001_R08 | method=nils | done obj=120.2587 time=8.11s
+[08:46:44]   S0001_R08 | method=feasibility_aware_alns | start
+[08:46:47]   S0001_R08 | method=feasibility_aware_alns | done obj=390.5285 time=3.01s
+[08:46:47]   S0001_R08 | method=nils_r | start
+[08:46:56]   S0001_R08 | method=nils_r | done obj=120.2587 time=8.90s
+[08:47:04]   S0001_R09 | method=truck_only | start
+[08:47:04]   S0001_R09 | method=truck_only | done obj=64.9874 time=0.01s
+[08:47:04]   S0001_R09 | method=nils | start
+[08:47:13]   S0001_R09 | method=nils | done obj=64.9874 time=8.93s
+[08:47:13]   S0001_R09 | method=feasibility_aware_alns | start
+[08:47:16]   S0001_R09 | method=feasibility_aware_alns | done obj=547.0072 time=2.88s
+[08:47:16]   S0001_R09 | method=nils_r | start
+[08:47:25]   S0001_R09 | method=nils_r | done obj=64.9874 time=9.02s
+[08:47:33]   S0001_R10 | method=truck_only | start
+[08:47:33]   S0001_R10 | method=truck_only | done obj=1213.0165 time=0.01s
+[08:47:33]   S0001_R10 | method=nils | start
+[08:47:36]   S0001_R10 | method=nils | done obj=55.8735 time=2.51s
+[08:47:36]   S0001_R10 | method=feasibility_aware_alns | start
+[08:47:39]   S0001_R10 | method=feasibility_aware_alns | done obj=650.0914 time=2.85s
+[08:47:39]   S0001_R10 | method=nils_r | start
+[08:47:42]   S0001_R10 | method=nils_r | done obj=55.8735 time=3.38s
+[08:47:42] [2/72] scenario=S0002 n=15 drones=1 eligible=0.25 end=low ratio=1.25 handling=medium spatial=clustered pweights=strict beta=0.10
+[08:47:50]   S0002_R01 | method=truck_only | start
+[08:47:50]   S0002_R01 | method=truck_only | done obj=11809.5539 time=0.01s
+[08:47:50]   S0002_R01 | method=nils | start
+[08:47:51]   S0002_R01 | method=nils | done obj=54.9233 time=1.14s
+[08:47:51]   S0002_R01 | method=feasibility_aware_alns | start
+[08:47:56]   S0002_R01 | method=feasibility_aware_alns | done obj=46.5358 time=4.60s
+[08:47:56]   S0002_R01 | method=nils_r | start
+[08:48:05]   S0002_R01 | method=nils_r | done obj=46.5358 time=8.90s
+[08:48:13]   S0002_R02 | method=truck_only | start
+[08:48:13]   S0002_R02 | method=truck_only | done obj=16788.4736 time=0.00s
+[08:48:13]   S0002_R02 | method=nils | start
+[08:48:19]   S0002_R02 | method=nils | done obj=4279.3695 time=5.80s
+[08:48:19]   S0002_R02 | method=feasibility_aware_alns | start
+[08:48:21]   S0002_R02 | method=feasibility_aware_alns | done obj=4429.2316 time=2.61s
+[08:48:21]   S0002_R02 | method=nils_r | start
+[08:48:28]   S0002_R02 | method=nils_r | done obj=4279.3695 time=7.12s
+[08:48:28] study chunk limit reached after 10 new instances
+[08:48:40] heuristic study complete

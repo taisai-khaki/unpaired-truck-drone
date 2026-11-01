@@ -11,6 +11,7 @@ from typing import Dict, List, Sequence
 import numpy as np
 
 from .data_models import Customer, Drone, InstanceData, InstanceSummary, ProblemConstants, PriorityClass, Truck
+from .energy import AerodynamicCalibration, derive_drone_energy_rates
 from .parameters import GenerationSettings, SearchConfig
 
 
@@ -33,6 +34,8 @@ class _FleetSpec:
     drone_parcel_weight_kg: float
     swap_time_s: float
     reload_time_s: float
+    handling_time_s: float
+    energy_provenance: Dict[str, object] | None = None
 
 
 def _to_float_list(raw: Dict, key: str, default: float) -> float:
@@ -77,6 +80,7 @@ class InstanceGenerator:
             drone_spec=drone_spec,
             drone_energy=drone_energy or {},
         )
+        self.energy_provenance = dict(self.fleet_spec.energy_provenance or {})
         self._validate_inputs()
 
     @staticmethod
@@ -102,6 +106,7 @@ class InstanceGenerator:
                 drone_parcel_weight_kg=2.0,
                 swap_time_s=60.0,
                 reload_time_s=60.0,
+                handling_time_s=60.0,
             )
 
         return _FleetSpec(
@@ -122,11 +127,28 @@ class InstanceGenerator:
             drone_parcel_weight_kg=float(drone_spec.get("parcel_weight_kg", 2.0)),
             swap_time_s=float(truck_spec.get("swap_time_s", 60.0)),
             reload_time_s=float(truck_spec.get("reload_time_s", 60.0)),
+            handling_time_s=float(
+                truck_spec.get("handling_time_s", truck_spec.get("reload_time_s", 60.0))
+            ),
         )
 
     @classmethod
     def from_search_config(cls, config: SearchConfig) -> "InstanceGenerator":
         """Build a generator from a typed SearchConfig."""
+        calibration = AerodynamicCalibration(
+            c1=config.vehicles.drone_aero.c1,
+            c2=config.vehicles.drone_aero.c2,
+            c4=config.vehicles.drone_aero.c4,
+            c5=config.vehicles.drone_aero.c5,
+            gravity_m_per_s2=config.vehicles.drone_aero.gravity_m_per_s2,
+            alpha_deg=config.vehicles.drone_aero.alpha_deg,
+        )
+        empty_rate, loaded_rate, provenance = derive_drone_energy_rates(
+            config.vehicles.drone.speed_kmph,
+            config.vehicles.drone.curb_weight_kg,
+            config.vehicles.drone.parcel_weight_kg,
+            calibration,
+        )
         return cls(
             generation=config.generation,
             priority_penalties=config.priority_penalties,
@@ -141,12 +163,14 @@ class InstanceGenerator:
                 drone_max_battery_wh=config.vehicles.drone.max_battery_wh,
                 drone_cost_per_km=config.vehicle_costs.drone_cost_per_km,
                 drone_energy_cost_per_min=config.vehicle_costs.drone_energy_cost_per_min,
-                drone_energy_per_min_when_empty=float(config.experiment.get("drone_energy_empty_per_min", 15.0)),
-                drone_energy_per_min_when_loaded=float(config.experiment.get("drone_energy_loaded_per_min", 20.0)),
+                drone_energy_per_min_when_empty=empty_rate,
+                drone_energy_per_min_when_loaded=loaded_rate,
                 drone_curb_weight_kg=config.vehicles.drone.curb_weight_kg,
                 drone_parcel_weight_kg=config.vehicles.drone.parcel_weight_kg,
                 swap_time_s=config.vehicle_runtime.swap_time_s,
                 reload_time_s=config.vehicle_runtime.reload_time_s,
+                handling_time_s=config.vehicle_runtime.handling_time_s,
+                energy_provenance=provenance,
             ),
         )
 
@@ -278,12 +302,28 @@ class InstanceGenerator:
         constants = ProblemConstants(
             swap_time_s=float(overrides.get("swap_time_s", self.fleet_spec.swap_time_s)),
             reload_time_s=float(overrides.get("reload_time_s", self.fleet_spec.reload_time_s)),
+            handling_time_s=float(
+                overrides.get("handling_time_s", self.fleet_spec.handling_time_s)
+            ),
             max_shift_minutes=float(
                 overrides.get("max_shift_minutes", overrides.get("t_max_minutes", 480.0))
             ),
             big_m=float(overrides.get("big_m", 10000.0)),
         )
 
+        metadata = {
+            "coordinate_scale": float(gen.coordinate_scale),
+            "instance_class": gen.instance_class,
+            "priority_share": list(gen.priority_share),
+            "generation": {
+                "num_customers": int(gen.num_customers),
+                "num_trucks": int(gen.num_trucks),
+                "num_drones": int(gen.num_drones),
+                "region": gen.region,
+                "seed_offset": int(seed),
+            },
+        }
+        metadata.update(self.energy_provenance)
         return InstanceData(
             name=name,
             seed=int(seed),
@@ -293,18 +333,7 @@ class InstanceGenerator:
             drones=drones[: int(gen.num_drones)],
             priority_penalties=self.priority_penalties,
             constants=constants,
-            metadata={
-                "coordinate_scale": float(gen.coordinate_scale),
-                "instance_class": gen.instance_class,
-                "priority_share": list(gen.priority_share),
-                "generation": {
-                    "num_customers": int(gen.num_customers),
-                    "num_trucks": int(gen.num_trucks),
-                    "num_drones": int(gen.num_drones),
-                    "region": gen.region,
-                    "seed_offset": int(seed),
-                },
-            },
+            metadata=metadata,
         )
 
     def generate_batch(
@@ -432,6 +461,11 @@ def load_instance_json(path: str | Path) -> InstanceData:
     constants = ProblemConstants(
         swap_time_s=float(raw["constants"].get("swap_time_s", 60.0)),
         reload_time_s=float(raw["constants"].get("reload_time_s", 60.0)),
+        handling_time_s=float(
+            raw["constants"].get(
+                "handling_time_s", raw["constants"].get("reload_time_s", 60.0)
+            )
+        ),
         max_shift_minutes=float(raw["constants"].get("max_shift_minutes", 480.0)),
         big_m=float(raw["constants"].get("big_m", 10000.0)),
     )
