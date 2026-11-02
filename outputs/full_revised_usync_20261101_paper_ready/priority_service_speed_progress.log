@@ -2344,3 +2344,202 @@
 [2026-11-02 04:51:46]   S0047_R09 | nils | feasible=True time=120.04s
 [2026-11-02 04:52:04]   S0047_R09 | feasibility_aware_alns | feasible=True time=17.48s
 [2026-11-02 04:54:06]   S0047_R09 | nils_r | feasible=True time=122.17s
+[2026-11-02 04:54:12] [470/720] S0047_R10 | n=75 start
+[2026-11-02 04:54:12]   S0047_R10 | truck_only | feasible=True time=0.10s
+[2026-11-02 04:56:14]   S0047_R10 | nils | feasible=True time=121.53s
+[2026-11-02 04:56:34]   S0047_R10 | feasibility_aware_alns | feasible=True time=20.15s
+[2026-11-02 04:58:36]   S0047_R10 | nils_r | feasible=True time=121.92s
+[2026-11-02 04:58:40] [471/720] S0048_R01 | n=75 start
+[2026-11-02 04:58:41]   S0048_R01 | truck_only | feasible=False time=0.10s
+[2026-11-02 05:00:42]   S0048_R01 | nils | feasible=True time=121.53s
+[2026-11-02 05:01:12]   S0048_R01 | feasibility_aware_alns | feasible=True time=30.19s
+[2026-11-02 05:03:14]   S0048_R01 | nils_r | feasible=True time=122.01s
+[2026-11-02 05:03:19] [472/720] S0048_R02 | n=75 start
+[2026-11-02 05:03:19]   S0048_R02 | truck_only | feasible=True time=0.05s
+[2026-11-02 05:05:21]   S0048_R02 | nils | feasible=True time=121.83s
+[2026-11-02 05:05:44]   S0048_R02 | feasibility_aware_alns | feasible=True time=22.69s
+[2026-11-02 05:07:46]   S0048_R02 | nils_r | feasible=True time=122.19s
+[2026-11-02 05:07:51] [473/720] S0048_R03 | n=75 start
+[2026-11-02 05:07:51]   S0048_R03 | truck_only | feasible=True time=0.07s
+[2026-11-02 05:09:52]   S0048_R03 | nils | feasible=True time=121.59s
+[2026-11-02 05:10:21]   S0048_R03 | feasibility_aware_alns | feasible=True time=28.68s
+[2026-11-02 05:12:23]   S0048_R03 | nils_r | feasible=True time=121.61s
+[2026-11-02 05:12:26] [474/720] S0048_R04 | n=75 start
+[2026-11-02 05:12:27]   S0048_R04 | truck_only | feasible=True time=0.04s
+[2026-11-02 05:14:28]   S0048_R04 | nils | feasible=True time=121.62s
+[2026-11-02 05:14:51]   S0048_R04 | feasibility_aware_alns | feasible=True time=23.25s
+[2026-11-02 05:16:54]   S0048_R04 | nils_r | feasible=True time=122.09s
+[2026-11-02 05:16:59] [475/720] S0048_R05 | n=75 start
+[2026-11-02 05:16:59]   S0048_R05 | truck_only | feasible=False time=0.12s
+[2026-11-02 05:19:00]   S0048_R05 | nils | feasible=True time=121.84s
+[2026-11-02 05:19:24]   S0048_R05 | feasibility_aware_alns | feasible=True time=23.34s
+[2026-11-02 05:21:26]   S0048_R05 | nils_r | feasible=True time=121.89s
+[2026-11-02 05:21:30] [476/720] S0048_R06 | n=75 start
+[2026-11-02 05:21:30]   S0048_R06 | truck_only | feasible=True time=0.05s
+[2026-11-02 05:23:31]   S0048_R06 | nils | feasible=True time=121.54s
+[2026-11-02 05:24:02]   S0048_R06 | feasibility_aware_alns | feasible=True time=30.88s
+[2026-11-02 05:26:04]   S0048_R06 | nils_r | feasible=True time=121.85s
+[2026-11-02 05:26:09] [477/720] S0048_R07 | n=75 start
+[2026-11-02 05:26:09]   S0048_R07 | truck_only | feasible=True time=0.05s
+[2026-11-02 05:28:11]   S0048_R07 | nils | feasible=True time=121.93s
+[2026-11-02 05:28:37]   S0048_R07 | feasibility_aware_alns | feasible=True time=26.48s
+[2026-11-02 05:30:39]   S0048_R07 | nils_r | feasible=True time=121.65s
+[2026-11-02 05:30:43] [478/720] S0048_R08 | n=75 start
+[2026-11-02 05:30:44]   S0048_R08 | truck_only | feasible=False time=0.08s
+[2026-11-02 05:32:46]   S0048_R08 | nils | feasible=True time=122.07s
+[2026-11-02 05:33:11]   S0048_R08 | feasibility_aware_alns | feasible=True time=24.99s
+[2026-11-02 05:35:12]   S0048_R08 | nils_r | feasible=True time=121.63s
+[2026-11-02 05:35:16] [479/720] S0048_R09 | n=75 start
+[2026-11-02 05:35:16]   S0048_R09 | truck_only | feasible=True time=0.04s
+[2026-11-02 05:37:18]   S0048_R09 | nils | feasible=True time=121.99s
+[2026-11-02 05:37:38]   S0048_R09 | feasibility_aware_alns | feasible=True time=20.25s
+[2026-11-02 05:39:40]   S0048_R09 | nils_r | feasible=True time=121.86s
+[2026-11-02 05:39:44] [480/720] S0048_R10 | n=75 start
+[2026-11-02 05:39:44]   S0048_R10 | truck_only | feasible=False time=0.08s
+[2026-11-02 05:41:46]   S0048_R10 | nils | feasible=True time=121.93s
+[2026-11-02 05:42:10]   S0048_R10 | feasibility_aware_alns | feasible=True time=23.32s
+[2026-11-02 05:44:12]   S0048_R10 | nils_r | feasible=True time=121.98s
+[2026-11-02 05:44:16] [481/720] S0049_R01 | n=75 start
+[2026-11-02 05:44:16]   S0049_R01 | truck_only | feasible=False time=0.08s
+[2026-11-02 05:46:18]   S0049_R01 | nils | feasible=True time=121.73s
+[2026-11-02 05:46:48]   S0049_R01 | feasibility_aware_alns | feasible=True time=29.78s
+[2026-11-02 05:48:50]   S0049_R01 | nils_r | feasible=True time=121.96s
+[2026-11-02 05:48:54] [482/720] S0049_R02 | n=75 start
+[2026-11-02 05:48:54]   S0049_R02 | truck_only | feasible=True time=0.05s
+[2026-11-02 05:50:56]   S0049_R02 | nils | feasible=True time=121.99s
+[2026-11-02 05:51:25]   S0049_R02 | feasibility_aware_alns | feasible=True time=28.40s
+[2026-11-02 05:53:27]   S0049_R02 | nils_r | feasible=True time=121.94s
+[2026-11-02 05:53:32] [483/720] S0049_R03 | n=75 start
+[2026-11-02 05:53:32]   S0049_R03 | truck_only | feasible=False time=0.09s
+[2026-11-02 05:55:34]   S0049_R03 | nils | feasible=True time=122.11s
+[2026-11-02 05:55:56]   S0049_R03 | feasibility_aware_alns | feasible=True time=21.65s
+[2026-11-02 05:57:57]   S0049_R03 | nils_r | feasible=True time=121.55s
+[2026-11-02 05:58:01] [484/720] S0049_R04 | n=75 start
+[2026-11-02 05:58:01]   S0049_R04 | truck_only | feasible=True time=0.05s
+[2026-11-02 06:00:03]   S0049_R04 | nils | feasible=True time=121.90s
+[2026-11-02 06:00:26]   S0049_R04 | feasibility_aware_alns | feasible=True time=23.23s
+[2026-11-02 06:02:28]   S0049_R04 | nils_r | feasible=True time=121.82s
+[2026-11-02 06:02:32] [485/720] S0049_R05 | n=75 start
+[2026-11-02 06:02:32]   S0049_R05 | truck_only | feasible=True time=0.05s
+[2026-11-02 06:04:34]   S0049_R05 | nils | feasible=True time=121.96s
+[2026-11-02 06:04:53]   S0049_R05 | feasibility_aware_alns | feasible=True time=18.44s
+[2026-11-02 06:06:55]   S0049_R05 | nils_r | feasible=True time=122.19s
+[2026-11-02 06:06:59] [486/720] S0049_R06 | n=75 start
+[2026-11-02 06:06:59]   S0049_R06 | truck_only | feasible=False time=0.08s
+[2026-11-02 06:09:00]   S0049_R06 | nils | feasible=True time=121.58s
+[2026-11-02 06:09:28]   S0049_R06 | feasibility_aware_alns | feasible=True time=27.54s
+[2026-11-02 06:11:30]   S0049_R06 | nils_r | feasible=True time=121.76s
+[2026-11-02 06:11:34] [487/720] S0049_R07 | n=75 start
+[2026-11-02 06:11:35]   S0049_R07 | truck_only | feasible=False time=0.08s
+[2026-11-02 06:13:36]   S0049_R07 | nils | feasible=True time=121.94s
+[2026-11-02 06:14:02]   S0049_R07 | feasibility_aware_alns | feasible=True time=25.22s
+[2026-11-02 06:16:03]   S0049_R07 | nils_r | feasible=True time=121.76s
+[2026-11-02 06:16:08] [488/720] S0049_R08 | n=75 start
+[2026-11-02 06:16:08]   S0049_R08 | truck_only | feasible=True time=0.06s
+[2026-11-02 06:18:10]   S0049_R08 | nils | feasible=True time=121.88s
+[2026-11-02 06:18:34]   S0049_R08 | feasibility_aware_alns | feasible=True time=23.42s
+[2026-11-02 06:20:35]   S0049_R08 | nils_r | feasible=True time=121.71s
+[2026-11-02 06:20:40] [489/720] S0049_R09 | n=75 start
+[2026-11-02 06:20:40]   S0049_R09 | truck_only | feasible=True time=0.05s
+[2026-11-02 06:22:42]   S0049_R09 | nils | feasible=True time=122.04s
+[2026-11-02 06:23:08]   S0049_R09 | feasibility_aware_alns | feasible=True time=25.34s
+[2026-11-02 06:25:09]   S0049_R09 | nils_r | feasible=True time=121.45s
+[2026-11-02 06:25:13] [490/720] S0049_R10 | n=75 start
+[2026-11-02 06:25:13]   S0049_R10 | truck_only | feasible=True time=0.05s
+[2026-11-02 06:27:15]   S0049_R10 | nils | feasible=True time=121.67s
+[2026-11-02 06:27:40]   S0049_R10 | feasibility_aware_alns | feasible=True time=24.96s
+[2026-11-02 06:29:41]   S0049_R10 | nils_r | feasible=True time=121.56s
+[2026-11-02 06:29:45] [491/720] S0050_R01 | n=75 start
+[2026-11-02 06:29:45]   S0050_R01 | truck_only | feasible=True time=0.04s
+[2026-11-02 06:31:47]   S0050_R01 | nils | feasible=True time=121.58s
+[2026-11-02 06:32:16]   S0050_R01 | feasibility_aware_alns | feasible=True time=29.31s
+[2026-11-02 06:34:18]   S0050_R01 | nils_r | feasible=True time=121.76s
+[2026-11-02 06:34:23] [492/720] S0050_R02 | n=75 start
+[2026-11-02 06:34:23]   S0050_R02 | truck_only | feasible=False time=0.10s
+[2026-11-02 06:36:25]   S0050_R02 | nils | feasible=True time=122.21s
+[2026-11-02 06:36:58]   S0050_R02 | feasibility_aware_alns | feasible=True time=32.52s
+[2026-11-02 06:39:00]   S0050_R02 | nils_r | feasible=True time=121.69s
+[2026-11-02 06:39:05] [493/720] S0050_R03 | n=75 start
+[2026-11-02 06:39:05]   S0050_R03 | truck_only | feasible=True time=0.05s
+[2026-11-02 06:41:06]   S0050_R03 | nils | feasible=True time=121.72s
+[2026-11-02 06:41:33]   S0050_R03 | feasibility_aware_alns | feasible=True time=26.62s
+[2026-11-02 06:43:35]   S0050_R03 | nils_r | feasible=True time=121.54s
+[2026-11-02 06:43:39] [494/720] S0050_R04 | n=75 start
+[2026-11-02 06:43:39]   S0050_R04 | truck_only | feasible=True time=0.05s
+[2026-11-02 06:45:40]   S0050_R04 | nils | feasible=True time=121.61s
+[2026-11-02 06:46:05]   S0050_R04 | feasibility_aware_alns | feasible=True time=24.38s
+[2026-11-02 06:48:06]   S0050_R04 | nils_r | feasible=True time=121.59s
+[2026-11-02 06:48:11] [495/720] S0050_R05 | n=75 start
+[2026-11-02 06:48:11]   S0050_R05 | truck_only | feasible=False time=0.09s
+[2026-11-02 06:50:13]   S0050_R05 | nils | feasible=True time=121.45s
+[2026-11-02 06:50:39]   S0050_R05 | feasibility_aware_alns | feasible=True time=26.59s
+[2026-11-02 06:52:41]   S0050_R05 | nils_r | feasible=True time=121.90s
+[2026-11-02 06:52:46] [496/720] S0050_R06 | n=75 start
+[2026-11-02 06:52:46]   S0050_R06 | truck_only | feasible=True time=0.06s
+[2026-11-02 06:54:48]   S0050_R06 | nils | feasible=True time=121.57s
+[2026-11-02 06:55:18]   S0050_R06 | feasibility_aware_alns | feasible=True time=30.42s
+[2026-11-02 06:57:21]   S0050_R06 | nils_r | feasible=True time=122.09s
+[2026-11-02 06:57:25] [497/720] S0050_R07 | n=75 start
+[2026-11-02 06:57:26]   S0050_R07 | truck_only | feasible=True time=0.07s
+[2026-11-02 06:59:27]   S0050_R07 | nils | feasible=True time=121.82s
+[2026-11-02 06:59:53]   S0050_R07 | feasibility_aware_alns | feasible=True time=25.40s
+[2026-11-02 07:01:55]   S0050_R07 | nils_r | feasible=True time=121.80s
+[2026-11-02 07:02:00] [498/720] S0050_R08 | n=75 start
+[2026-11-02 07:02:00]   S0050_R08 | truck_only | feasible=True time=0.06s
+[2026-11-02 07:04:02]   S0050_R08 | nils | feasible=True time=121.92s
+[2026-11-02 07:04:29]   S0050_R08 | feasibility_aware_alns | feasible=True time=27.48s
+[2026-11-02 07:06:31]   S0050_R08 | nils_r | feasible=True time=121.55s
+[2026-11-02 07:06:35] [499/720] S0050_R09 | n=75 start
+[2026-11-02 07:06:35]   S0050_R09 | truck_only | feasible=True time=0.05s
+[2026-11-02 07:08:37]   S0050_R09 | nils | feasible=True time=121.52s
+[2026-11-02 07:08:58]   S0050_R09 | feasibility_aware_alns | feasible=True time=21.73s
+[2026-11-02 07:11:00]   S0050_R09 | nils_r | feasible=True time=121.54s
+[2026-11-02 07:11:04] [500/720] S0050_R10 | n=75 start
+[2026-11-02 07:11:04]   S0050_R10 | truck_only | feasible=False time=0.08s
+[2026-11-02 07:13:06]   S0050_R10 | nils | feasible=True time=121.45s
+[2026-11-02 07:13:32]   S0050_R10 | feasibility_aware_alns | feasible=True time=25.69s
+[2026-11-02 07:15:33]   S0050_R10 | nils_r | feasible=True time=121.60s
+[2026-11-02 07:15:38] [501/720] S0051_R01 | n=75 start
+[2026-11-02 07:15:38]   S0051_R01 | truck_only | feasible=True time=0.04s
+[2026-11-02 07:17:40]   S0051_R01 | nils | feasible=True time=121.78s
+[2026-11-02 07:18:05]   S0051_R01 | feasibility_aware_alns | feasible=True time=25.29s
+[2026-11-02 07:20:07]   S0051_R01 | nils_r | feasible=True time=121.86s
+[2026-11-02 07:20:12] [502/720] S0051_R02 | n=75 start
+[2026-11-02 07:20:12]   S0051_R02 | truck_only | feasible=True time=0.07s
+[2026-11-02 07:22:14]   S0051_R02 | nils | feasible=True time=122.04s
+[2026-11-02 07:22:41]   S0051_R02 | feasibility_aware_alns | feasible=True time=27.07s
+[2026-11-02 07:24:43]   S0051_R02 | nils_r | feasible=True time=121.71s
+[2026-11-02 07:24:48] [503/720] S0051_R03 | n=75 start
+[2026-11-02 07:24:48]   S0051_R03 | truck_only | feasible=True time=0.06s
+[2026-11-02 07:26:50]   S0051_R03 | nils | feasible=True time=121.77s
+[2026-11-02 07:27:19]   S0051_R03 | feasibility_aware_alns | feasible=True time=29.01s
+[2026-11-02 07:29:21]   S0051_R03 | nils_r | feasible=True time=121.59s
+[2026-11-02 07:29:25] [504/720] S0051_R04 | n=75 start
+[2026-11-02 07:29:25]   S0051_R04 | truck_only | feasible=True time=0.05s
+[2026-11-02 07:31:27]   S0051_R04 | nils | feasible=True time=121.50s
+[2026-11-02 07:31:49]   S0051_R04 | feasibility_aware_alns | feasible=True time=22.04s
+[2026-11-02 07:33:51]   S0051_R04 | nils_r | feasible=True time=122.34s
+[2026-11-02 07:33:56] [505/720] S0051_R05 | n=75 start
+[2026-11-02 07:33:56]   S0051_R05 | truck_only | feasible=True time=0.04s
+[2026-11-02 07:35:57]   S0051_R05 | nils | feasible=True time=121.54s
+[2026-11-02 07:36:21]   S0051_R05 | feasibility_aware_alns | feasible=True time=23.83s
+[2026-11-02 07:38:23]   S0051_R05 | nils_r | feasible=True time=121.83s
+[2026-11-02 07:38:29] [506/720] S0051_R06 | n=75 start
+[2026-11-02 07:38:29]   S0051_R06 | truck_only | feasible=True time=0.05s
+[2026-11-02 07:40:31]   S0051_R06 | nils | feasible=True time=121.80s
+[2026-11-02 07:40:57]   S0051_R06 | feasibility_aware_alns | feasible=True time=26.62s
+[2026-11-02 07:42:59]   S0051_R06 | nils_r | feasible=True time=121.81s
+[2026-11-02 07:43:05] [507/720] S0051_R07 | n=75 start
+[2026-11-02 07:43:05]   S0051_R07 | truck_only | feasible=True time=0.07s
+[2026-11-02 07:45:07]   S0051_R07 | nils | feasible=True time=121.98s
+[2026-11-02 07:45:40]   S0051_R07 | feasibility_aware_alns | feasible=True time=32.85s
+[2026-11-02 07:47:42]   S0051_R07 | nils_r | feasible=True time=121.69s
+[2026-11-02 07:47:46] [508/720] S0051_R08 | n=75 start
+[2026-11-02 07:47:46]   S0051_R08 | truck_only | feasible=False time=0.07s
+[2026-11-02 07:49:47]   S0051_R08 | nils | feasible=True time=121.57s
+[2026-11-02 07:50:12]   S0051_R08 | feasibility_aware_alns | feasible=True time=24.50s
+[2026-11-02 07:52:14]   S0051_R08 | nils_r | feasible=True time=121.67s
+[2026-11-02 07:52:18] [509/720] S0051_R09 | n=75 start
+[2026-11-02 07:52:18]   S0051_R09 | truck_only | feasible=True time=0.05s
+[2026-11-02 07:54:20]   S0051_R09 | nils | feasible=True time=121.55s
+[2026-11-02 07:54:53]   S0051_R09 | feasibility_aware_alns | feasible=True time=33.65s
