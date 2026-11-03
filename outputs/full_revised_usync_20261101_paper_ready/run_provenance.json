@@ -1,5 +1,5 @@
 {
-  "run_status": "running",
+  "run_status": "complete",
   "run_started_at": "2026-11-01T11:28:38-06:00",
   "source_git_commit": "5bce12bc37949b17d60f1dc38414fb9cffa20b4e",
   "source_code_file": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\src\\experiments\\run_priority_service_speed_by_method.py",
@@ -16,7 +16,17 @@
     "nils_r"
   ],
   "configured_nils_time_limit_seconds": 120.0,
+  "configured_nils_max_outer_iterations": 25,
+  "configured_nils_max_no_improve": 8,
   "configured_alns_time_limit_seconds": 120.0,
   "configured_alns_max_iterations": 40,
-  "resume_policy": "append per completed instance; skip successful instance-method pairs"
+  "resume_policy": "append per completed instance; skip successful instance-method pairs",
+  "run_finished_at": "2026-11-03T01:07:23-06:00",
+  "method_rows": 2880,
+  "paper_table_rows": 2880,
+  "customer_detail_rows": 136550,
+  "decision_log_rows": 1185,
+  "reconstruction_log_rows": 200,
+  "objective_replay_matches": 2721,
+  "objective_replay_mismatches": 159
 }

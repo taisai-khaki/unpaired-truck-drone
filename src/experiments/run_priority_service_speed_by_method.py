@@ -335,7 +335,9 @@ def _run_one(
     start = time.time()
     solution = _run_method(instance, scenario_config, method_name)
     solution = _force_feasible_solution(instance, solution, scenario_config, method_name)
-    solution.objective, solution.components = evaluate_solution(instance, solution)
+    search_components = dict(solution.components)
+    solution.objective, objective_components = evaluate_solution(instance, solution)
+    solution.components = {**objective_components, **search_components}
     elapsed = time.time() - start
     return solution, elapsed, bool(is_feasible(instance, solution))
 
@@ -753,6 +755,7 @@ def run_pipeline(
             "input_instances": int(len(meta)),
             "selected_methods": selected_methods,
             "configured_nils_time_limit_seconds": float(main_config.heuristics.time_limit_seconds),
+            "configured_nils_max_outer_iterations": int(main_config.heuristics.max_outer_iter),
             "configured_alns_time_limit_seconds": float(
                 dict(main_config.experiment or {}).get("alns_time_limit_seconds", float("nan"))
             ),

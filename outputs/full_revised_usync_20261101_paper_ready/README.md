@@ -4,6 +4,14 @@
 
 This is a fresh, sequential rerun of the 720-instance design. It is required because schedules from the earlier run were not persisted, and replaying time-limited NILS/NILS-R runs can produce different objectives. Do not combine this run's customer records with the earlier aggregate results.
 
+## Important interpretation before manuscript use
+
+- The fresh matched M5–M8 replacement for Table 15 is in `tables/table_15_matched_m5_m8.tex` and `.csv`; the old submitted table is not reproduced. See `paper_results_reconciliation.md` for the row-by-row comparison and required interpretation.
+- Both methods had a configured 120-second limit, but the copied configuration sets NILS to at most 25 outer iterations and ALNS to at most 40 destroy/repair iterations. Their mean realized runtimes also differ materially (82.62 seconds for M5 versus 18.53 seconds for M8 overall). This is a matched-instance comparison, not a matched-realized-runtime comparison; do not make equal-computational-effort claims from it.
+- The exporter overwrote search diagnostics while refreshing objective components, so `iterations` and related search counters in the historical aggregate file are zero and cannot be recovered from this run. The exporter has been fixed for future runs; that fix does not retroactively repair the saved counters.
+- The separate available-fleet sweep is not part of this fresh run. Older August sweep files were excluded because they were produced under an earlier implementation and have not been validated against this run's timing convention.
+- The NILS-R decision log records NILS-R rollback/admission decisions; it is not a trace of every candidate considered by M5 or M8.
+
 ## Design and methods
 
 - 720 saved instances reused from `outputs/full_revised_usync_20261030_matched120/raw/`.
