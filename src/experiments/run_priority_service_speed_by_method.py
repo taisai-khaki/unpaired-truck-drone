@@ -337,7 +337,10 @@ def _run_one(
     solution = _force_feasible_solution(instance, solution, scenario_config, method_name)
     search_components = dict(solution.components)
     solution.objective, objective_components = evaluate_solution(instance, solution)
-    solution.components = {**objective_components, **search_components}
+    search_diagnostics = {
+        key: value for key, value in search_components.items() if key not in objective_components
+    }
+    solution.components = {**search_diagnostics, **objective_components}
     elapsed = time.time() - start
     return solution, elapsed, bool(is_feasible(instance, solution))
 
