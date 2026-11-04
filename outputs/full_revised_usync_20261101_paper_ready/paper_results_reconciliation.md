@@ -48,3 +48,30 @@ The fresh diagnostics also do not preserve actual iteration counts: the exporter
 - `table_priority_service_speed_by_method.csv`, `table_drone_use_decision_quality.csv`, `customer_service_detail.csv`, and the NILS-R reconstruction and decision logs contain the requested service diagnostics.
 - The separate matched available-drone fleet-size sweep is not included. Prior August sweep files were intentionally excluded because their run provenance and timing convention were not established as equivalent to this fresh run.
 - `drone_decision_log.csv` records NILS-R rollback/admission actions, not every candidate evaluation made internally by M5 or M8.
+
+## Follow-up audit: truck-only feasibility
+
+The 237 infeasible M1 outcomes were replayed through the same final-solution validator. Every one had only `SHIFT` errors; there were no load, assignment, timing-window-lower-bound, or route-structure errors. The validator reported 380 truck-route shift violations across those 237 cases: 10 at size 50, 43 at size 75, and 327 at size 100. The instances use a 480-minute (8-hour) maximum shift. A late upper time-window arrival is only a warning in this implementation, so it was not the reason M1 was marked infeasible.
+
+| Size | M1 runs | Feasible | Infeasible | Shift-violation findings |
+|---:|---:|---:|---:|---:|
+| 15 | 230 | 230 | 0 | 0 |
+| 50 | 210 | 200 | 10 | 10 |
+| 75 | 90 | 52 | 38 | 43 |
+| 100 | 190 | 1 | 189 | 327 |
+
+The baseline starts from the greedy truck constructor; it does not optimize routes subject to the shift limit. The output repair/fallback did not find a shift-feasible truck-only plan in these cases. Therefore these are infeasible **constructed baseline schedules**, not a proof that the truck-only mathematical problem is infeasible. M1 objective summaries must disclose their feasible-run denominators (483/720 overall).
+
+## October archive versus November rerun
+
+Re-aggregating the October 30 archived `heuristic_study_runs.csv` with the same matched Table 15 code shows that the October and November aggregate comparisons are close. The ALNS objective values are identical for all 720 instances; the NILS row-level mismatches are limited to 76 instances (28 at size 50, 3 at size 75, 45 at size 100) and none changes feasibility.
+
+| Size | Oct M5/M8 wins/ties | Nov M5/M8 wins/ties | Oct mean Z M5/M8 | Nov mean Z M5/M8 |
+|---:|---:|---:|---:|---:|
+| All | 280 / 437 / 3 | 291 / 428 / 1 | 119,681.20 / 50,848.95 | 119,472.22 / 50,848.95 |
+| 15 | 139 / 90 / 1 | 139 / 90 / 1 | 427.70 / 1,596.35 | 427.70 / 1,596.35 |
+| 50 | 139 / 69 / 2 | 148 / 62 / 0 | 48,795.92 / 33,299.67 | 48,428.60 / 33,299.67 |
+| 75 | 0 / 90 / 0 | 2 / 88 / 0 | 126,597.35 / 43,342.75 | 125,022.89 / 43,342.75 |
+| 100 | 2 / 188 / 0 | 2 / 188 / 0 | 339,111.50 / 133,422.65 | 339,471.37 / 133,422.65 |
+
+Thus the large discrepancy is between these October/November full matched runs and the older submitted-paper Table 15, not between the October 30 archive and November rerun. The October README documents its run settings but explicitly says no execution Git SHA was recorded. The November provenance records commit `5bce12bc37949b17d60f1dc38414fb9cffa20b4e`. Because the October execution commit is missing, the 76 NILS objective differences cannot be attributed conclusively to time-limited search variation versus an unrecorded code-version difference. The unchanged ALNS values rule out a changed ALNS benchmark result in this October-to-November comparison.
