@@ -1165,17 +1165,20 @@ def _extract_best_paired_displacement(
     deadline: float | None = None,
 ) -> SolutionData | None:
     ranked_candidates: List[Tuple[float, SolutionData, Tuple[int, int, int]]] = []
+    deadline_reached = False
 
     for drone, truck in drone_to_truck.items():
         if deadline is not None and time.monotonic() >= deadline:
-            return None
+            deadline_reached = True
+            break
         route = solution.truck_routes.get(truck, [0, 0])
         if len(route) < 3:
             continue
 
         for customer_idx in range(1, len(route) - 1):
             if deadline is not None and time.monotonic() >= deadline:
-                return None
+                deadline_reached = True
+                break
             customer = route[customer_idx]
             if customer == 0:
                 continue
@@ -1189,11 +1192,13 @@ def _extract_best_paired_displacement(
             found_feasible_for_key = False
             for launch_idx in range(0, customer_idx):
                 if deadline is not None and time.monotonic() >= deadline:
-                    return None
+                    deadline_reached = True
+                    break
                 launch_node = route[launch_idx]
                 for recovery_idx in range(customer_idx + 1, len(route)):
                     if deadline is not None and time.monotonic() >= deadline:
-                        return None
+                        deadline_reached = True
+                        break
                     recovery_node = route[recovery_idx]
                     if recovery_node == launch_node or recovery_node == customer:
                         continue
@@ -1247,14 +1252,23 @@ def _extract_best_paired_displacement(
                     candidate.objective = obj
                     candidate.components = comp
                     ranked_candidates.append((obj, candidate, move_key))
+                if deadline_reached:
+                    break
+            if deadline_reached:
+                break
             if not found_feasible_for_key and tabu_moves is not None:
                 tabu_moves.add(move_key)
+        if deadline_reached:
+            break
+    if deadline_reached and stats is not None:
+        stats["displacement_deadline_terminated"] = 1
     return _select_best_strict_candidate(
         instance,
         ranked_candidates,
         strict_check_cap=strict_check_cap,
         stats=stats,
         deadline=deadline,
+        preserve_best_on_deadline=True,
     )
 
 
@@ -1278,17 +1292,20 @@ def _extract_best_no_unpairing_displacement(
     2) at the depot.
     """
     ranked_candidates: List[Tuple[float, SolutionData, Tuple[int, int, int]]] = []
+    deadline_reached = False
 
     for truck in instance.truck_ids():
         if deadline is not None and time.monotonic() >= deadline:
-            return None
+            deadline_reached = True
+            break
         route = solution.truck_routes.get(truck, [0, 0])
         if len(route) < 3:
             continue
 
         for customer_idx in range(1, len(route) - 1):
             if deadline is not None and time.monotonic() >= deadline:
-                return None
+                deadline_reached = True
+                break
             customer = route[customer_idx]
             if customer == 0:
                 continue
@@ -1299,7 +1316,8 @@ def _extract_best_no_unpairing_displacement(
 
             for drone in instance.drone_ids():
                 if deadline is not None and time.monotonic() >= deadline:
-                    return None
+                    deadline_reached = True
+                    break
                 move_key = (customer, drone, truck)
                 if tabu_moves is not None and move_key in tabu_moves:
                     continue
@@ -1307,14 +1325,16 @@ def _extract_best_no_unpairing_displacement(
                 found_feasible_for_key = False
                 for launch_idx in range(0, customer_idx):
                     if deadline is not None and time.monotonic() >= deadline:
-                        return None
+                        deadline_reached = True
+                        break
                     launch_node = route[launch_idx]
                     recovery_candidates = [0] + [route[idx] for idx in range(customer_idx + 1, len(route))]
                     seen_recovery_nodes: set[int] = set()
 
                     for recovery_node in recovery_candidates:
                         if deadline is not None and time.monotonic() >= deadline:
-                            return None
+                            deadline_reached = True
+                            break
                         if recovery_node in seen_recovery_nodes:
                             continue
                         seen_recovery_nodes.add(recovery_node)
@@ -1376,15 +1396,26 @@ def _extract_best_no_unpairing_displacement(
                         candidate.components = comp
                         ranked_candidates.append((obj, candidate, move_key))
 
+                    if deadline_reached:
+                        break
+                if deadline_reached:
+                    break
                 if not found_feasible_for_key and tabu_moves is not None:
                     tabu_moves.add(move_key)
+            if deadline_reached:
+                break
+        if deadline_reached:
+            break
 
+    if deadline_reached and stats is not None:
+        stats["displacement_deadline_terminated"] = 1
     return _select_best_strict_candidate(
         instance,
         ranked_candidates,
         strict_check_cap=strict_check_cap,
         stats=stats,
         deadline=deadline,
+        preserve_best_on_deadline=True,
     )
 
 

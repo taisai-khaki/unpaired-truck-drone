@@ -33,6 +33,12 @@ For the runs that did search, the enumeration is large: n=50 generated a mean 34
 - Distance-only 2-opt and the lack of systematic objective-driven truck relocation remain unchanged and require a separate experiment after feasible initialization is reliable.
 - Do not use `outputs/nils_timeout_diagnostic_20261105/`: that interrupted attempt used the instance-generation seed as the NILS seed and omitted the benchmark wrapper. It is marked invalid and preserved only for audit.
 
+## Initialization Environment Follow-Up
+
+The `n=75` and `n=100` construction failures in this diagnostic were reproduced with Python 3.11.9 when OR-Tools was unavailable. The November baseline and current master have identical construction and feasibility code; with Python 3.14.3 and OR-Tools 9.15.6755, both code versions produced feasible starts on the same ten `n=100` instances before any NILS displacement. The earlier `n=100` zero-drone outcome is therefore a construction-environment failure, not a searched NILS solution. See `outputs/nils_initialization_audit_20261105/initialization_audit.md` and its route/timing comparison files. The original diagnostic run did not record its Python executable or dependency versions, so its exact runtime cannot be proven from its provenance file.
+
+The corrected-runtime 30-instance diagnostic is complete. It produced feasible starts and final schedules on all 30 runs. Use the results and caveats in `outputs/nils_timeout_diagnostic_runtime_matched_20261105/diagnostic_findings.md` instead of the earlier `n=75`/`n=100` summaries above; the earlier comparisons were confounded by the missing OR-Tools dependency.
+
 ## Files
 
 - `nils_timeout_diagnostic_runs.csv`: matched instance-level objectives, feasibility, drone use, runtime, search counters, and statuses.

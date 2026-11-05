@@ -1,0 +1,4 @@
+size,runs,baseline_feasible_runs,rerun_feasible_runs,matched_feasible_pairs,rerun_wins,rerun_losses,ties,baseline_mean_objective,rerun_mean_objective,mean_objective_delta_rerun_minus_baseline,baseline_mean_drone_share,rerun_mean_drone_share,baseline_mean_cpu_seconds,rerun_mean_cpu_seconds,deadline_terminated_runs,mean_sortie_options_generated,mean_full_candidates_evaluated
+50,10,10,10,10,3,1,6,56666.22224905522,50388.160126208524,-6278.062122846704,0.04,0.046,120.2719134092331,120.3635150799877,10,37640.2,29747.3
+75,10,10,10,10,10,0,0,131645.30079154662,123119.56309652317,-8525.737695023445,0.0,0.013333333333333334,121.6311573266983,121.68591452996479,10,40846.9,37444.8
+100,10,10,10,10,7,3,0,288202.08157140185,303333.05269631837,15130.97112491651,0.0,0.01,121.76893243789672,121.53818660000107,10,26823.1,22887.2

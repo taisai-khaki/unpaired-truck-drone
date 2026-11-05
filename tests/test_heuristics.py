@@ -95,6 +95,88 @@ def test_m5_displacement_returns_feasible_candidate_found_before_deadline(monkey
     assert stats["displacement_deadline_terminated"] == 1
 
 
+def test_m3_paired_displacement_returns_candidate_found_before_deadline(monkeypatch) -> None:
+    instance = InstanceGenerator.from_search_config(_config()).generate_single(25, "paired_deadline_case")
+    solution = build_initial_solution(instance, seed=25)
+    truck = next(truck for truck, route in solution.truck_routes.items() if len(route) > 2)
+    customer = solution.truck_routes[truck][1]
+    drone = instance.drone_ids()[0]
+    clock = {"now": 0.0}
+    candidate = nils_module._empty_solution_clone(solution)
+
+    monkeypatch.setattr(nils_module.time, "monotonic", lambda: clock["now"])
+    monkeypatch.setattr(nils_module, "move_to_drone", lambda *_args, **_kwargs: candidate)
+    monkeypatch.setattr(nils_module, "_quick_local_feasible", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(nils_module, "evaluate_solution", lambda *_args: (clock.update(now=11.0) or 1.0, {}))
+    monkeypatch.setattr(nils_module, "_sync_route_assignments", lambda *_args: None)
+    monkeypatch.setattr(nils_module, "is_feasible", lambda *_args: True)
+
+    stats = {
+        "candidate_reassignments_evaluated": 0,
+        "local_screen_rejections": 0,
+        "strict_feasibility_checks": 0,
+        "infeasible_candidate_rejections": 0,
+        "displacement_deadline_terminated": 0,
+    }
+    selected = nils_module._extract_best_paired_displacement(
+        instance,
+        solution,
+        {drone: truck},
+        instance.coordinate_map(),
+        eligible_customers={customer},
+        battery_aware_screening=False,
+        battery_slack_ratio=0.0,
+        strict_check_cap=12,
+        stats=stats,
+        deadline=10.0,
+    )
+
+    assert selected is candidate
+    assert stats["candidate_reassignments_evaluated"] == 1
+    assert stats["strict_feasibility_checks"] == 1
+    assert stats["displacement_deadline_terminated"] == 1
+
+
+def test_m4_no_unpairing_displacement_returns_candidate_found_before_deadline(monkeypatch) -> None:
+    instance = InstanceGenerator.from_search_config(_config()).generate_single(26, "no_unpair_deadline_case")
+    solution = build_initial_solution(instance, seed=26)
+    truck = next(truck for truck, route in solution.truck_routes.items() if len(route) > 2)
+    customer = solution.truck_routes[truck][1]
+    clock = {"now": 0.0}
+    candidate = nils_module._empty_solution_clone(solution)
+
+    monkeypatch.setattr(nils_module.time, "monotonic", lambda: clock["now"])
+    monkeypatch.setattr(nils_module, "move_to_drone", lambda *_args, **_kwargs: candidate)
+    monkeypatch.setattr(nils_module, "_quick_local_feasible", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(nils_module, "evaluate_solution", lambda *_args: (clock.update(now=11.0) or 1.0, {}))
+    monkeypatch.setattr(nils_module, "_sync_route_assignments", lambda *_args: None)
+    monkeypatch.setattr(nils_module, "is_feasible", lambda *_args: True)
+
+    stats = {
+        "candidate_reassignments_evaluated": 0,
+        "local_screen_rejections": 0,
+        "strict_feasibility_checks": 0,
+        "infeasible_candidate_rejections": 0,
+        "displacement_deadline_terminated": 0,
+    }
+    selected = nils_module._extract_best_no_unpairing_displacement(
+        instance,
+        solution,
+        instance.coordinate_map(),
+        eligible_customers={customer},
+        battery_aware_screening=False,
+        battery_slack_ratio=0.0,
+        strict_check_cap=12,
+        stats=stats,
+        deadline=10.0,
+    )
+
+    assert selected is candidate
+    assert stats["candidate_reassignments_evaluated"] == 1
+    assert stats["strict_feasibility_checks"] == 1
+    assert stats["displacement_deadline_terminated"] == 1
+
+
 def test_nils_accepts_salvaged_candidate_after_search_deadline(monkeypatch) -> None:
     instance = InstanceGenerator.from_search_config(_config()).generate_single(24, "deadline_accept_case")
     clock = {"now": 0.0}

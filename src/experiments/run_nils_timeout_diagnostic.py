@@ -3,9 +3,12 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import importlib.metadata
 import json
+import platform
 import statistics
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -103,6 +106,24 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _require_ortools_version() -> str:
+    try:
+        return importlib.metadata.version("ortools")
+    except importlib.metadata.PackageNotFoundError as error:
+        raise RuntimeError(
+            "The matched NILS timeout diagnostic requires OR-Tools for the same feasible "
+            "initializer fallback used by the baseline. Install requirements.txt in this "
+            "Python environment before running the diagnostic."
+        ) from error
+
+
+def _portable_path(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        return f"<external>/{path.name}"
+
+
 def _write_run_row(path: Path, row: dict[str, Any]) -> None:
     is_new = not path.exists() or path.stat().st_size == 0
     with path.open("a", newline="", encoding="utf-8") as handle:
@@ -187,6 +208,7 @@ def main() -> None:
     parser.add_argument("--instance-ids", nargs="+")
     args = parser.parse_args()
 
+    ortools_version = _require_ortools_version()
     source_dir = args.source_dir.resolve()
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -226,16 +248,25 @@ def main() -> None:
     metadata: dict[str, Any] = {
         "status": "running",
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
-        "baseline_output_dir": str(source_dir),
-        "baseline_results_csv": str(source_csv),
+        "baseline_output_dir": _portable_path(source_dir),
+        "baseline_results_csv": _portable_path(source_csv),
         "baseline_results_sha256": hashlib.sha256(source_csv.read_bytes()).hexdigest(),
         "baseline_execution_commit": provenance.get("source_git_commit"),
         "diagnostic_execution_commit": git_value("git", "rev-parse", "HEAD"),
         "diagnostic_worktree_status": git_value("git", "status", "--short"),
         "nils_source_sha256": hashlib.sha256(nils_path.read_bytes()).hexdigest(),
+        "python_executable": sys.executable,
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+        "numpy_version": importlib.metadata.version("numpy"),
+        "pandas_version": importlib.metadata.version("pandas"),
+        "ortools_version": ortools_version,
         "nils_time_limit_seconds": int(provenance.get("configured_nils_time_limit_seconds", 120)),
         "nils_max_outer_iterations": int(provenance.get("configured_nils_max_outer_iterations", 25)),
         "nils_max_no_improve": int(provenance.get("configured_nils_max_no_improve", 8)),
+        "nils_initialization_mode": "greedy",
+        "nils_initialization_time_limit_seconds": 3,
+        "nils_initial_repair_max_steps": 3,
         "nils_random_seed": int(base_config.heuristics.random_seed),
         "strict_candidate_check_cap": 12,
         "instance_seed_source": "random_seed column in baseline heuristic_study_runs.csv",
