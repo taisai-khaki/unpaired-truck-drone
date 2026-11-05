@@ -1,0 +1,6 @@
+This diagnostic attempt is preserved for audit only and is not valid for comparison.
+
+It used the per-instance generation seed as the NILS seed, although the benchmark
+uses heuristics.nils.random_seed=2026. It also omitted the study's feasibility
+repair/fallback wrapper. The rows must not be used as matched M5 rerun results.
+See run_provenance.json. A corrected diagnostic uses a separate output directory.

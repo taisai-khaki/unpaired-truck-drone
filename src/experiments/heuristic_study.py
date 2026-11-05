@@ -759,6 +759,16 @@ def _collect_row(
         "iterations": float(solution.components.get("iterations", 0.0)),
         "improving_moves_accepted": float(solution.components.get("improving_moves_accepted", 0.0)),
         "candidate_reassignments_evaluated": float(solution.components.get("candidate_reassignments_evaluated", 0.0)),
+        "full_candidates_evaluated": float(solution.components.get("candidate_reassignments_evaluated", 0.0)),
+        "displacement_customers_scanned": float(solution.components.get("displacement_customers_scanned", 0.0)),
+        "displacement_sortie_options_generated": float(
+            solution.components.get("displacement_sortie_options_generated", 0.0)
+        ),
+        "local_screen_rejections": float(solution.components.get("local_screen_rejections", 0.0)),
+        "strict_feasibility_checks": float(solution.components.get("strict_feasibility_checks", 0.0)),
+        "displacement_deadline_terminated": bool(
+            solution.components.get("displacement_deadline_terminated", 0.0)
+        ),
         "final_solution_feasibility_flag": feasible_flag,
         "status": "feasible" if feasible_flag else "infeasible",
         "run_label": str(solution.status),

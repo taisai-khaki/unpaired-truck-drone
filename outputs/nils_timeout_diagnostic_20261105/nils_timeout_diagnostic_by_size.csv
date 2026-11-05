@@ -1,0 +1,3 @@
+size,runs,feasible_runs,rerun_wins,rerun_losses,ties,baseline_mean_objective,rerun_mean_objective,mean_objective_delta_rerun_minus_baseline,baseline_mean_drone_share,rerun_mean_drone_share,baseline_mean_cpu_seconds,rerun_mean_cpu_seconds,deadline_terminated_runs,mean_sortie_options_generated,mean_full_candidates_evaluated
+50,10,10,3,1,6,56666.22224905522,50388.160126208524,-6278.062122846704,0.04,0.046,120.2719134092331,120.21570000000065,10,36009.9,28189.7
+75,2,1,1,1,0,155635.33941556,225281.05550128387,69645.71608572385,0.0,0.006666666666666667,121.68353414535522,60.875,1,17980.5,15339.5

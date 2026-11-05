@@ -836,14 +836,20 @@ def _select_best_strict_candidate(
     strict_check_cap: int,
     stats: Dict[str, int] | None = None,
     deadline: float | None = None,
+    preserve_best_on_deadline: bool = False,
 ) -> SolutionData | None:
     if not ranked_candidates:
         return None
     ranked = sorted(ranked_candidates, key=lambda x: x[0])
     max_checks = len(ranked) if strict_check_cap <= 0 else min(len(ranked), int(strict_check_cap))
-    for idx in range(max_checks):
+    idx = 0
+    while idx < max_checks:
         if deadline is not None and time.monotonic() >= deadline:
-            return None
+            if not preserve_best_on_deadline:
+                return None
+            deadline = None
+            if stats is not None:
+                stats["displacement_deadline_terminated"] = 1
         _, candidate, _ = ranked[idx]
         _sync_route_assignments(candidate, instance)
         if stats is not None:
@@ -854,6 +860,7 @@ def _select_best_strict_candidate(
             return candidate
         if stats is not None:
             stats["infeasible_candidate_rejections"] += 1
+        idx += 1
     return None
 
 
@@ -1060,10 +1067,14 @@ def _extract_best_displacement(
     deadline: float | None = None,
 ) -> SolutionData | None:
     ranked_candidates: List[Tuple[float, SolutionData, Tuple[int, int, int]]] = []
+    deadline_reached = False
 
     for customer in range(1, instance.num_customers + 1):
         if deadline is not None and time.monotonic() >= deadline:
-            return None
+            deadline_reached = True
+            break
+        if stats is not None:
+            stats["displacement_customers_scanned"] += 1
         if customer not in eligible_customers:
             continue
         truck_served = any(solution.u_truck.get((t, customer), 0) == 1 for t in instance.truck_ids())
@@ -1071,16 +1082,19 @@ def _extract_best_displacement(
             continue
         for d in range(1, instance.num_drones + 1):
             if deadline is not None and time.monotonic() >= deadline:
-                return None
+                deadline_reached = True
+                break
             source_truck = next((t for t in instance.truck_ids() if solution.u_truck.get((t, customer), 0) == 1), 0)
             move_key = (customer, d, source_truck)
             if tabu_moves is not None and move_key in tabu_moves:
                 continue
-            for launch_node, recovery_node, launch_truck, recovery_truck in _m5_sortie_options(
-                instance, solution, customer, source_truck
-            ):
+            sortie_options = _m5_sortie_options(instance, solution, customer, source_truck)
+            if stats is not None:
+                stats["displacement_sortie_options_generated"] += len(sortie_options)
+            for launch_node, recovery_node, launch_truck, recovery_truck in sortie_options:
                 if deadline is not None and time.monotonic() >= deadline:
-                    return None
+                    deadline_reached = True
+                    break
                 candidate = move_to_drone(
                     instance,
                     solution,
@@ -1120,12 +1134,19 @@ def _extract_best_displacement(
                 candidate.objective = obj
                 candidate.components = comp
                 ranked_candidates.append((obj, candidate, move_key))
+            if deadline_reached:
+                break
+        if deadline_reached:
+            break
+    if deadline_reached and stats is not None:
+        stats["displacement_deadline_terminated"] = 1
     return _select_best_strict_candidate(
         instance,
         ranked_candidates,
         strict_check_cap=strict_check_cap,
         stats=stats,
         deadline=deadline,
+        preserve_best_on_deadline=True,
     )
 
 
@@ -1703,6 +1724,9 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
         "local_search_calls": 0,
         "local_screen_rejections": 0,
         "strict_feasibility_checks": 0,
+        "displacement_customers_scanned": 0,
+        "displacement_sortie_options_generated": 0,
+        "displacement_deadline_terminated": 0,
         "repair_attempts": 0,
         "repair_successes": 0,
         "repair_failures": 0,
@@ -1917,7 +1941,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                 deadline=deadline,
             )
 
-        if time.monotonic() >= deadline:
+        deadline_reached = time.monotonic() >= deadline
+        if deadline_reached and candidate is None:
             break
 
         if candidate is not None and risk_admission_guard:
@@ -1943,6 +1968,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                 continue
 
         if candidate is None:
+            if deadline_reached:
+                break
             if _try_risk_rollback():
                 continue
             if enable_perturbation:
@@ -1979,6 +2006,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
         need_global_check = require_feasible_incumbent or (not strict_checked) or (
             full_feasibility_check_interval > 0 and it % int(full_feasibility_check_interval) == 0
         )
+        if deadline_reached and strict_checked:
+            need_global_check = False
         if need_global_check:
             stats["strict_feasibility_checks"] += 1
             if not is_feasible(instance, candidate):
@@ -2003,7 +2032,7 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                     if no_improve >= max_no_improve:
                         break
                     continue
-        if enable_perturbation and it % 4 == 0:
+        if enable_perturbation and it % 4 == 0 and not deadline_reached:
             perturbed = relocate_random_customer(candidate, instance, rng)
             stats["perturbation_moves"] += 1
             perturbed.objective, perturbed.components = evaluate_solution(instance, perturbed)
@@ -2011,7 +2040,7 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                 candidate = perturbed
             _sync_route_assignments(candidate, instance)
 
-        if require_feasible_incumbent:
+        if require_feasible_incumbent and not (deadline_reached and strict_checked):
             stats["strict_feasibility_checks"] += 1
             if not is_feasible(instance, candidate):
                 repaired = None
@@ -2042,7 +2071,7 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
             accept = metropolis(current.objective, candidate.objective, temp, rnd)
         if accept:
             previous_current = _empty_solution_clone(current)
-            if enable_local_search:
+            if enable_local_search and not deadline_reached:
                 candidate = apply_two_opt_to_solution(candidate, instance)
                 candidate.objective, candidate.components = evaluate_solution(instance, candidate)
                 _sync_route_assignments(candidate, instance)
@@ -2078,6 +2107,11 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
     best.components["local_search_calls"] = float(stats["local_search_calls"])
     best.components["local_screen_rejections"] = float(stats["local_screen_rejections"])
     best.components["strict_feasibility_checks"] = float(stats["strict_feasibility_checks"])
+    best.components["displacement_customers_scanned"] = float(stats["displacement_customers_scanned"])
+    best.components["displacement_sortie_options_generated"] = float(
+        stats["displacement_sortie_options_generated"]
+    )
+    best.components["displacement_deadline_terminated"] = float(stats["displacement_deadline_terminated"])
     best.components["repair_attempts"] = float(stats["repair_attempts"])
     best.components["repair_successes"] = float(stats["repair_successes"])
     best.components["repair_failures"] = float(stats["repair_failures"])
