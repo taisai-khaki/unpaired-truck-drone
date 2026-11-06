@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from ..feasibility import is_feasible, validate_solution
-from ..heuristics.nils import run_nils
+from ..heuristics.architecture import count_cross_truck_recoveries, sortie_associations, validate_drone_architecture
+from ..heuristics.nils import default_drone_to_truck, run_nils
 from ..instance_generator import load_instance_json
 from ..parameters import load_and_build_config
 from .heuristic_study import (
@@ -50,6 +51,9 @@ RUN_FIELDS = [
     "drone_served_customers",
     "drone_service_share",
     "cross_truck_recoveries",
+    "architecture",
+    "architecture_valid",
+    "architecture_violations",
     "iterations",
     "cpu_seconds",
     "runtime_limit_seconds",
@@ -185,64 +189,23 @@ def _load_verified_backbone(
 
 
 def _rendezvous_associations(solution, initial_truck_routes: dict[int, list[int]] | None = None) -> list[dict[str, Any]]:
-    associations = []
     source_truck_by_customer = {
         int(node): int(truck_id)
         for truck_id, route in (initial_truck_routes or {}).items()
         for node in route
         if int(node) != 0
     }
-    for drone_id, route in solution.drone_routes.items():
-        positions = {int(node): index for index, node in enumerate(route)}
-        launch_events = [
-            (positions[int(node)], int(truck_id))
-            for (node, event_drone, truck_id), value in solution.z1.items()
-            if int(event_drone) == int(drone_id)
-            and value > 0.5
-            and int(node) in positions
-        ]
-        recovery_events = [
-            (positions[int(node)], int(truck_id))
-            for (node, event_drone, truck_id), value in solution.z2.items()
-            if int(event_drone) == int(drone_id)
-            and value > 0.5
-            and int(node) in positions
-        ]
-        for (assigned_drone, customer_id), value in solution.u_drone.items():
-            if int(assigned_drone) != int(drone_id) or value < 0.5:
-                continue
-            position = positions.get(int(customer_id))
-            if position is None:
-                continue
-            prior_launches = [event for event in launch_events if event[0] < position]
-            next_recoveries = [event for event in recovery_events if event[0] > position]
-            launch = max(prior_launches, key=lambda event: event[0]) if prior_launches else None
-            recovery = min(next_recoveries, key=lambda event: event[0]) if next_recoveries else None
-            launch_node = int(route[launch[0]]) if launch is not None else 0
-            recovery_node = int(route[recovery[0]]) if recovery is not None else 0
-            launch_truck = launch[1] if launch is not None else None
-            recovery_truck = recovery[1] if recovery is not None else None
-            associations.append(
-                {
-                    "drone_id": int(drone_id),
-                    "customer_id": int(customer_id),
-                    "source_truck_from_initial_backbone": source_truck_by_customer.get(int(customer_id)),
-                    "launch_node": launch_node,
-                    "launch_truck": launch_truck,
-                    "recovery_node": recovery_node,
-                    "recovery_truck": recovery_truck,
-                    "cross_truck_recovery": bool(
-                        launch_truck is not None
-                        and recovery_truck is not None
-                        and launch_truck != recovery_truck
-                    ),
-                }
-            )
-    return associations
+    return [
+        {
+            **association,
+            "source_truck_from_initial_backbone": source_truck_by_customer.get(association["customer_id"]),
+        }
+        for association in sortie_associations(solution)
+    ]
 
 
 def _cross_truck_recoveries(solution) -> int:
-    return sum(event["cross_truck_recovery"] for event in _rendezvous_associations(solution))
+    return count_cross_truck_recoveries(solution)
 
 
 def _high_priority_tardiness(instance, solution) -> float:
@@ -324,9 +287,14 @@ def _update_outputs(output_dir: Path, rows: list[dict[str, str]]) -> None:
     )
 
 
-def run_targeted_replays(config_path: Path, paper_run_dir: Path, output_dir: Path) -> None:
+def run_targeted_replays(
+    config_path: Path,
+    paper_run_dir: Path,
+    output_dir: Path,
+    backbone_source_path: Path | None = None,
+) -> None:
     config = load_and_build_config(config_path)
-    backbone_path = output_dir / "initial_truck_backbones.json"
+    backbone_path = backbone_source_path or output_dir / "initial_truck_backbones.json"
     backbone_data = json.loads(backbone_path.read_text(encoding="utf-8"))
     raw_dir = paper_run_dir / "raw"
     case_methods = [
@@ -371,12 +339,18 @@ def run_targeted_replays(config_path: Path, paper_run_dir: Path, output_dir: Pat
         cpu_seconds = time.perf_counter() - started
         feasible = bool(is_feasible(instance, solution))
         findings = validate_solution(instance, solution)
+        architecture = {"paired_baseline": "M3", "no_unpairing": "M4"}.get(method, "M5")
+        pairing = default_drone_to_truck(instance) if architecture == "M3" else None
+        architecture_findings = validate_drone_architecture(instance, solution, architecture, pairing)
         record = {
             "instance_id": instance_id,
             "method": method,
             "size": instance.num_customers,
             "objective": float(solution.objective),
             "feasible": feasible,
+            "architecture": architecture,
+            "architecture_valid": not architecture_findings,
+            "architecture_violations": architecture_findings,
             "status": str(solution.status),
             "iterations": float(solution.components.get("iterations", 0.0)),
             "cpu_seconds": cpu_seconds,
@@ -405,6 +379,7 @@ def run_targeted_replays(config_path: Path, paper_run_dir: Path, output_dir: Pat
                 if value > 0.5
             ],
             "rendezvous_associations": _rendezvous_associations(solution, initial_routes),
+            "cross_truck_recoveries": _cross_truck_recoveries(solution),
         }
         audit["cases"].append(record)
         audit["updated_at_utc"] = datetime.now(timezone.utc).isoformat()
@@ -450,6 +425,7 @@ def run_diagnostic(config_path: Path, source_dir: Path, paper_run_dir: Path, out
         "source_backbone_cache_sha256": _sha256_file(backbone_source_path),
         "selected_instance_ids": [row["instance_id"] for row in selected],
         "methods": list(METHODS),
+        "architecture_validation_version": 2,
     }
     for key, value in current_signature.items():
         if prior and prior.get(key) != value:
@@ -542,6 +518,21 @@ def run_diagnostic(config_path: Path, source_dir: Path, paper_run_dir: Path, out
                 cpu_seconds = time.perf_counter() - started
                 feasible = bool(is_feasible(instance, solution))
                 drone_customers = solution.served_by_drone()
+                architecture = {
+                    "paired_baseline": "M3",
+                    "no_unpairing": "M4",
+                    "nils": "M5",
+                }.get(method)
+                architecture_findings = (
+                    validate_drone_architecture(
+                        instance,
+                        solution,
+                        architecture,
+                        default_drone_to_truck(instance) if architecture == "M3" else None,
+                    )
+                    if architecture
+                    else []
+                )
                 row = {
                     "instance_id": instance_id,
                     "scenario_id": baseline["scenario_id"],
@@ -556,6 +547,9 @@ def run_diagnostic(config_path: Path, source_dir: Path, paper_run_dir: Path, out
                     "drone_served_customers": len(drone_customers),
                     "drone_service_share": len(drone_customers) / max(1, instance.num_customers),
                     "cross_truck_recoveries": _cross_truck_recoveries(solution),
+                    "architecture": architecture or "",
+                    "architecture_valid": not architecture_findings if architecture else "",
+                    "architecture_violations": json.dumps(architecture_findings, separators=(",", ":")),
                     "iterations": float(solution.components.get("iterations", 0.0)),
                     "cpu_seconds": float(cpu_seconds),
                     "runtime_limit_seconds": float(
@@ -638,9 +632,10 @@ def main() -> None:
     parser.add_argument("--paper-run-dir", type=Path, default=DEFAULT_PAPER_RUN)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--audit-replay", action="store_true")
+    parser.add_argument("--backbone-source", type=Path)
     args = parser.parse_args()
     if args.audit_replay:
-        run_targeted_replays(args.config, args.paper_run_dir, args.output_dir)
+        run_targeted_replays(args.config, args.paper_run_dir, args.output_dir, args.backbone_source)
     else:
         run_diagnostic(args.config, args.source_diagnostic_dir, args.paper_run_dir, args.output_dir)
 

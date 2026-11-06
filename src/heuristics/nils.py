@@ -18,6 +18,7 @@ from ..timing import (
     synchronization_handling_minutes,
 )
 from .acceptance import metropolis
+from .architecture import validate_drone_architecture
 from .construction import _fill_solution_from_routes, build_initial_solution
 from .local_search import apply_two_opt_to_solution
 from .perturbation import relocate_random_customer
@@ -629,6 +630,22 @@ def _sync_route_assignments(solution: SolutionData, instance: InstanceData) -> N
                 solution.u_sync[(node, drone_id, truck_id)] = 1
 
 
+def _apply_feasibility_guarded_two_opt(
+    instance: InstanceData,
+    solution: SolutionData,
+    architecture: str,
+    drone_to_truck: Dict[int, int] | None = None,
+) -> tuple[SolutionData, bool]:
+    candidate = apply_two_opt_to_solution(solution, instance)
+    _sync_route_assignments(candidate, instance)
+    candidate.objective, candidate.components = evaluate_solution(instance, candidate)
+    if not is_feasible(instance, candidate):
+        return solution, False
+    if validate_drone_architecture(instance, candidate, architecture, drone_to_truck):
+        return solution, False
+    return candidate, True
+
+
 def _paired_trip_feasible(
     instance: InstanceData,
     drone: int,
@@ -947,28 +964,54 @@ def move_to_drone(
     if route[-1] != 0:
         route = route + [0]
     existing_non_depot = [node for node in route if node != 0]
+    existing_services = {
+        node
+        for (drone_id, node), value in solution.u_drone.items()
+        if drone_id == drone and value >= 0.5
+    }
     if customer in route:
         return None
     launch = int(launch_node or 0)
     recovery = int(recovery_node or 0)
-    if existing_non_depot and launch == 0:
-        # A later service on the same drone requires a new loaded parcel;
-        # depot return alone is not a parcel-reload event in this model.
+    append_after_recovery = False
+    launch_position = None
+    if existing_services:
+        if not has_event_nodes or launch == 0:
+            return None
+        route_positions = {node: index for index, node in enumerate(route) if node != 0}
+        if any(node not in route_positions for node in existing_services):
+            return None
+        last_service_position = max(route_positions[node] for node in existing_services)
+        rendezvous_after_service = sorted(
+            (route_positions[node], node, truck_id)
+            for node, event_drone, truck_id in active_rendezvous_events(solution)
+            if event_drone == drone
+            and node in route_positions
+            and route_positions[node] > last_service_position
+        )
+        if len(rendezvous_after_service) != 1:
+            return None
+        recovery_position, previous_recovery_node, previous_recovery_truck = rendezvous_after_service[0]
+        if recovery_position != len(route) - 2:
+            return None
+        if (launch, launch_truck) != (previous_recovery_node, previous_recovery_truck):
+            return None
+        launch_position = recovery_position
+        append_after_recovery = True
+    elif existing_non_depot:
         return None
     if has_event_nodes:
-        event_nodes = [node for node in (launch, recovery) if node != 0]
-        if len(event_nodes) != len(set(event_nodes)) or any(node in existing_non_depot for node in event_nodes):
+        if launch == recovery and launch != 0:
             return None
-        route = (
-            route[:-1]
-            + ([launch] if launch != 0 else [])
-            + [customer]
-            + ([recovery] if recovery != 0 else [])
-            + [0]
-        )
+        if recovery != 0 and recovery in existing_non_depot:
+            return None
+        if launch != 0 and launch in existing_non_depot and not append_after_recovery:
+            return None
+        if append_after_recovery:
+            route = route[: launch_position + 1] + [customer] + ([recovery] if recovery != 0 else []) + [0]
+        else:
+            route = [0] + ([launch] if launch != 0 else []) + [customer] + ([recovery] if recovery != 0 else []) + [0]
     else:
-        # A drone route is one loaded sortie unless a non-depot reload event
-        # explicitly starts a later loaded segment.
         if existing_non_depot:
             return None
         if insertion_index is None:
@@ -1022,6 +1065,9 @@ def move_to_drone(
             return None
     candidate.drone_routes[drone] = route
     candidate.x_drone = {}
+
+    if validate_drone_architecture(instance, candidate, "M5"):
+        return None
 
     return candidate
 
@@ -1805,6 +1851,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
         "tabu_reverts": 0,
         "perturbation_moves": 0,
         "local_search_calls": 0,
+        "local_search_reverts": 0,
+        "architecture_rejections": 0,
         "local_screen_rejections": 0,
         "strict_feasibility_checks": 0,
         "displacement_customers_scanned": 0,
@@ -1924,6 +1972,7 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
         pairing_map = dict(pairing_map)
     else:
         pairing_map = {}
+    architecture_name = "M3" if pairing_map else ("M4" if no_unpairing_mode else "M5")
 
     eligible_customers = _eligible_customer_ids(instance)
     stats["risk_rollback_attempts"] = 0
@@ -1933,6 +1982,7 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
     tabu_moves: set[Tuple[int, int, int]] = set()
 
     if use_paired_initialization and pairing_map:
+        pre_pairing_solution = _empty_solution_clone(current)
         current = _apply_initial_paired_sorties(
             instance,
             current,
@@ -1947,7 +1997,11 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
             tabu_moves=tabu_moves,
             stats=stats,
         )
+        _sync_route_assignments(current, instance)
         current.objective, current.components = evaluate_solution(instance, current)
+        if validate_drone_architecture(instance, current, architecture_name, pairing_map):
+            current = pre_pairing_solution
+            stats["architecture_rejections"] += 1
 
     best = _empty_solution_clone(current)
     best.status = "nils_best"
@@ -2082,6 +2136,9 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
         risk_logs.append(result.log)
         if not result.accepted or result.solution is None:
             return False
+        if validate_drone_architecture(instance, result.solution, architecture_name, pairing_map):
+            stats["architecture_rejections"] += 1
+            return False
 
         current = result.solution
         best = _empty_solution_clone(current)
@@ -2145,6 +2202,11 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
             )
 
         deadline_reached = time.monotonic() >= deadline
+        if candidate is not None and validate_drone_architecture(
+            instance, candidate, architecture_name, pairing_map
+        ):
+            stats["architecture_rejections"] += 1
+            candidate = None
         if deadline_reached and candidate is None:
             break
 
@@ -2281,10 +2343,16 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
         if accept:
             previous_current = _empty_solution_clone(current)
             if enable_local_search and not deadline_reached:
-                candidate = apply_two_opt_to_solution(candidate, instance)
-                candidate.objective, candidate.components = evaluate_solution(instance, candidate)
-                _sync_route_assignments(candidate, instance)
+                pre_local_search_candidate = candidate
+                candidate, local_search_accepted = _apply_feasibility_guarded_two_opt(
+                    instance,
+                    pre_local_search_candidate,
+                    architecture_name,
+                    pairing_map,
+                )
                 stats["local_search_calls"] += 1
+                if not local_search_accepted:
+                    stats["local_search_reverts"] += 1
             _record_risk_move(previous_current, candidate, it)
             current = candidate
             no_improve = 0
@@ -2314,6 +2382,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
     best.components["tabu_reverts"] = float(stats["tabu_reverts"])
     best.components["perturbation_moves"] = float(stats["perturbation_moves"])
     best.components["local_search_calls"] = float(stats["local_search_calls"])
+    best.components["local_search_reverts"] = float(stats["local_search_reverts"])
+    best.components["architecture_rejections"] = float(stats["architecture_rejections"])
     best.components["local_screen_rejections"] = float(stats["local_screen_rejections"])
     best.components["strict_feasibility_checks"] = float(stats["strict_feasibility_checks"])
     best.components["displacement_customers_scanned"] = float(stats["displacement_customers_scanned"])
