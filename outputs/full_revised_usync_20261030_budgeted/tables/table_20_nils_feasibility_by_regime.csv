@@ -1,0 +1,4 @@
+endurance_level,eligible_share_target,n,number_of_drones,priority_weight_profile,battery_slack_ratio,n_runs,feasible_runs,feasibility_rate
+low,0.25,15,1,moderate,0.1,16,16,1.0
+low,0.25,15,1,flat,0.1,10,10,1.0
+low,0.25,15,1,strict,0.1,10,10,1.0

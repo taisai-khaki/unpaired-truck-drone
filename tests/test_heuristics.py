@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+
 from src.heuristics import build_initial_solution
 from src.heuristics import run_nils
+from src.heuristics import baselines as baselines_module
 from src.heuristics import nils as nils_module
+from src.experiments import heuristic_study as study_module
 from src.instance_generator import InstanceGenerator
 from src.parameters import HeuristicConfig, SearchConfig, GenerationSettings, build_search_config
 
@@ -327,6 +331,67 @@ def test_nils_reuses_persisted_initial_truck_routes() -> None:
 
     assert result.truck_routes == initial.truck_routes
     assert result.components["initial_backbone_reused"] == 1.0
+
+
+def test_m3_m4_share_seed_stopping_rules_and_initial_backbone(monkeypatch) -> None:
+    instance = InstanceGenerator.from_search_config(_config()).generate_single(30, "matched_architecture_case")
+    initial = build_initial_solution(instance, seed=30)
+    config = _config()
+    calls = []
+
+    def capture_run_nils(_instance, **kwargs):
+        calls.append(kwargs)
+        return build_initial_solution(_instance, seed=kwargs["seed"])
+
+    monkeypatch.setattr(baselines_module, "run_nils", capture_run_nils)
+    baselines_module.paired_baseline(instance, config, initial_truck_routes=initial.truck_routes)
+    baselines_module.no_unpairing_baseline(instance, config, initial_truck_routes=initial.truck_routes)
+
+    assert len(calls) == 2
+    assert [call["seed"] for call in calls] == [config.heuristics.random_seed] * 2
+    assert [call["max_iter"] for call in calls] == [config.heuristics.max_outer_iter] * 2
+    assert [call["max_no_improve"] for call in calls] == [config.heuristics.max_no_improve] * 2
+    assert [call["time_limit"] for call in calls] == [config.heuristics.time_limit_seconds] * 2
+    assert all(call["initial_truck_routes"] == initial.truck_routes for call in calls)
+    assert calls[0]["use_paired_initialization"] is True
+    assert calls[1]["no_unpairing_mode"] is True
+
+
+def test_main_study_passes_shared_routes_to_m5(monkeypatch) -> None:
+    instance = InstanceGenerator.from_search_config(_config()).generate_single(31, "study_backbone_case")
+    initial = build_initial_solution(instance, seed=31)
+    config = _config()
+    captured = {}
+
+    def capture_run_nils(_instance, **kwargs):
+        captured.update(kwargs)
+        return build_initial_solution(_instance, seed=kwargs["seed"])
+
+    monkeypatch.setattr(study_module, "run_nils", capture_run_nils)
+    study_module._run_method(instance, config, "nils", initial_truck_routes=initial.truck_routes)
+
+    assert captured["seed"] == config.heuristics.random_seed
+    assert captured["initial_truck_routes"] == initial.truck_routes
+    assert captured["max_displacement_candidates"] == config.heuristics.max_displacement_candidates
+    assert captured["max_repair_candidates"] == config.heuristics.max_repair_candidates
+
+
+def test_main_study_persists_and_reuses_a_feasible_common_backbone(tmp_path) -> None:
+    instance = InstanceGenerator.from_search_config(_config()).generate_single(32, "persisted_common_backbone")
+    generator = InstanceGenerator.from_search_config(_config())
+    raw_path = tmp_path / "raw" / f"{instance.name}.json"
+    generator.save(instance, raw_path)
+    backbone_dir = tmp_path / "raw" / "initial_truck_backbones"
+
+    routes, _ = study_module._load_or_create_common_truck_backbone(instance, raw_path, backbone_dir, _config())
+    saved_path = backbone_dir / f"{instance.name}.json"
+    assert saved_path.exists()
+    saved = json.loads(saved_path.read_text(encoding="utf-8"))
+    assert saved["truck_routes_sha256"] == study_module._truck_routes_sha256(routes)
+    assert saved["initialization_feasible"] is True
+
+    reused_routes, _ = study_module._load_or_create_common_truck_backbone(instance, raw_path, backbone_dir, _config())
+    assert reused_routes == routes
 
 
 def test_repair_candidate_cap_bounds_each_repair_step(monkeypatch) -> None:

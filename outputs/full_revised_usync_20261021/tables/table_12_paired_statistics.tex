@@ -1,0 +1,11 @@
+% tab:paired_stats
+% Paired statistical comparisons vs truck-only
+\begin{tabular}{llrrrlrrrrrrr}
+\toprule
+method & paired_test & test_statistic & p_value & effect_size & effect_size_name & n_pairs & mean_improvement_pct & median_improvement_pct & ci_low_pct & ci_high_pct & min_improvement_pct & max_improvement_pct \\
+\midrule
+nils & wilcoxon & 0.0000 & 0.0000 & 1.0000 & rank_biserial & 449 & 76.9812 & 84.4977 & 74.7351 & 79.1229 & 0.0000 & 99.8512 \\
+nils_r & wilcoxon & 0.0000 & 0.0000 & 1.0000 & rank_biserial & 449 & 76.8238 & 84.2313 & 74.6618 & 78.9771 & 0.0000 & 99.8512 \\
+feasibility_aware_alns & wilcoxon & 873.0000 & 0.0000 & 0.9827 & rank_biserial & 449 & 63.4206 & 74.1766 & 57.2177 & 68.4380 & -787.3149 & 99.8200 \\
+\bottomrule
+\end{tabular}

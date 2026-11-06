@@ -1,0 +1,3 @@
+launch_retrieval_time_class,method_name,n_runs,waiting_cost,avg_truck_waiting_time,avg_drone_waiting_time,avg_synchronization_delay,avg_improvement,avg_launches,feasibility_rate,avg_total_waiting_time
+medium,nils,10,0.0,2.379465157142569,25.46870346930708,25.252173852120126,93.8126897064114,1.9,1.0,27.84816862644965
+short,nils,26,0.0,1.9249586966803713,23.78257025889946,24.76471005093585,67.19081741382757,1.6923076923076923,1.0,25.707528955579832

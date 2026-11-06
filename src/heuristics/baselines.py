@@ -47,17 +47,23 @@ def truck_only_baseline(instance: InstanceData, config: SearchConfig) -> Baselin
     return BaselineResult(name="truck_only", solution=sol)
 
 
-def paired_baseline(instance: InstanceData, config: SearchConfig) -> BaselineResult:
+def paired_baseline(
+    instance: InstanceData,
+    config: SearchConfig,
+    *,
+    initial_truck_routes: dict[int, list[int]] | None = None,
+) -> BaselineResult:
     drone_to_truck = default_drone_to_truck(instance)
     obj = run_nils(
         instance,
-        seed=config.seed + 9,
+        seed=config.heuristics.random_seed,
         max_iter=max(1, config.heuristics.max_outer_iter),
         max_no_improve=max(1, config.heuristics.max_no_improve),
-        time_limit=max(10, min(120, config.heuristics.time_limit_seconds)),
+        time_limit=max(0, config.heuristics.time_limit_seconds),
         drone_to_truck=drone_to_truck,
         use_paired_initialization=True,
         max_initial_pairings=2,
+        initial_truck_routes=initial_truck_routes,
         **_nils_candidate_caps(config),
     )
     obj.status = "baseline_paired"
@@ -82,14 +88,20 @@ def no_priority_baseline(instance: InstanceData, config: SearchConfig) -> Baseli
         instance.priority_penalties.update(original)
 
 
-def no_unpairing_baseline(instance: InstanceData, config: SearchConfig) -> BaselineResult:
+def no_unpairing_baseline(
+    instance: InstanceData,
+    config: SearchConfig,
+    *,
+    initial_truck_routes: dict[int, list[int]] | None = None,
+) -> BaselineResult:
     obj = run_nils(
         instance,
-        seed=config.seed + 2,
-        max_iter=max(1, config.heuristics.max_outer_iter // 2),
+        seed=config.heuristics.random_seed,
+        max_iter=max(1, config.heuristics.max_outer_iter),
         max_no_improve=max(1, config.heuristics.max_no_improve),
-        time_limit=max(10, min(120, config.heuristics.time_limit_seconds)),
+        time_limit=max(0, config.heuristics.time_limit_seconds),
         no_unpairing_mode=True,
+        initial_truck_routes=initial_truck_routes,
         **_nils_candidate_caps(config),
     )
     obj.status = "baseline_no_unpairing"

@@ -1,0 +1,17 @@
+method_name,scenario_class,n_runs,feasible_runs,feasibility_rate
+feasibility_aware_alns,n15_p0.25_d1_clustered_Elow_V1.25_Hmedium_PWstrict_B0.10,10,10,1.0
+feasibility_aware_alns,n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,10,10,1.0
+feasibility_aware_alns,n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWflat_B0.10,10,10,1.0
+feasibility_aware_alns,n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWmoderate_B0.10,6,6,1.0
+nils,n15_p0.25_d1_clustered_Elow_V1.25_Hmedium_PWstrict_B0.10,10,10,1.0
+nils,n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,10,10,1.0
+nils,n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWflat_B0.10,10,10,1.0
+nils,n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWmoderate_B0.10,6,6,1.0
+nils_r,n15_p0.25_d1_clustered_Elow_V1.25_Hmedium_PWstrict_B0.10,10,10,1.0
+nils_r,n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,10,10,1.0
+nils_r,n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWflat_B0.10,10,10,1.0
+nils_r,n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWmoderate_B0.10,6,6,1.0
+truck_only,n15_p0.25_d1_clustered_Elow_V1.25_Hmedium_PWstrict_B0.10,10,10,1.0
+truck_only,n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,10,10,1.0
+truck_only,n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWflat_B0.10,10,10,1.0
+truck_only,n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWmoderate_B0.10,6,6,1.0

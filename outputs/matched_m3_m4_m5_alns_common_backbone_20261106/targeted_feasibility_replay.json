@@ -1,0 +1,925 @@
+{
+  "cases": [
+    {
+      "cpu_seconds": 43.47390290000476,
+      "drone_routes": {
+        "1": [
+          0,
+          0
+        ],
+        "2": [
+          0,
+          0
+        ],
+        "3": [
+          0,
+          32,
+          5,
+          70,
+          40,
+          0
+        ]
+      },
+      "feasible": false,
+      "initial_backbone_reused": true,
+      "initial_backbone_sha256": "b598322d40de62a198ccab4caa7a514bfd77017c5fe26f0ed440f4f6e47533e2",
+      "instance_id": "S0045_R02",
+      "iterations": 25.0,
+      "method": "paired_baseline",
+      "objective": 134907.85938170346,
+      "rendezvous_associations": [
+        {
+          "cross_truck_recovery": false,
+          "customer_id": 32,
+          "drone_id": 3,
+          "launch_node": 0,
+          "launch_truck": null,
+          "recovery_node": 5,
+          "recovery_truck": 3,
+          "source_truck_from_initial_backbone": 3
+        },
+        {
+          "cross_truck_recovery": false,
+          "customer_id": 40,
+          "drone_id": 3,
+          "launch_node": 70,
+          "launch_truck": 3,
+          "recovery_node": 0,
+          "recovery_truck": null,
+          "source_truck_from_initial_backbone": 3
+        }
+      ],
+      "size": 75,
+      "status": "baseline_paired",
+      "truck_routes": {
+        "1": [
+          0,
+          57,
+          44,
+          8,
+          0
+        ],
+        "2": [
+          0,
+          11,
+          43,
+          22,
+          52,
+          0
+        ],
+        "3": [
+          0,
+          46,
+          72,
+          38,
+          54,
+          63,
+          6,
+          12,
+          9,
+          55,
+          64,
+          42,
+          66,
+          18,
+          71,
+          21,
+          61,
+          35,
+          69,
+          14,
+          59,
+          2,
+          19,
+          50,
+          24,
+          49,
+          51,
+          25,
+          4,
+          7,
+          3,
+          27,
+          23,
+          73,
+          65,
+          67,
+          36,
+          45,
+          58,
+          28,
+          53,
+          48,
+          1,
+          41,
+          15,
+          62,
+          17,
+          60,
+          26,
+          10,
+          31,
+          56,
+          74,
+          37,
+          20,
+          5,
+          39,
+          33,
+          70,
+          29,
+          16,
+          75,
+          30,
+          47,
+          68,
+          34,
+          13,
+          0
+        ]
+      },
+      "validation_findings": [
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 66",
+          "node": 66,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 18",
+          "node": 18,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 71",
+          "node": 71,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 61",
+          "node": 61,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 2",
+          "node": 2,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 24",
+          "node": 24,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 51",
+          "node": 51,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 4",
+          "node": 4,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 7",
+          "node": 7,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 73",
+          "node": 73,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 65",
+          "node": 65,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 67",
+          "node": 67,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 58",
+          "node": 58,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 53",
+          "node": 53,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 15",
+          "node": 15,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 17",
+          "node": 17,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 74",
+          "node": 74,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 37",
+          "node": 37,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 20",
+          "node": 20,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 5",
+          "node": 5,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 39",
+          "node": 39,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 33",
+          "node": 33,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 70",
+          "node": 70,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 29",
+          "node": 29,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 16",
+          "node": 16,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 75",
+          "node": 75,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 30",
+          "node": 30,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 47",
+          "node": 47,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 68",
+          "node": 68,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 34",
+          "node": 34,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 13",
+          "node": 13,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Drone 3 arrives after ub at customer 40",
+          "node": 40,
+          "severity": "WARN",
+          "vehicle": "drone"
+        },
+        {
+          "code": "SHIFT",
+          "message": "Drone 3 exceeds shift",
+          "node": 3,
+          "severity": "ERROR",
+          "vehicle": "drone"
+        }
+      ],
+      "z1_launch_or_reload_events": [
+        {
+          "drone": 3,
+          "node": 70,
+          "truck": 3,
+          "value": 1
+        }
+      ],
+      "z2_recovery_or_swap_events": [
+        {
+          "drone": 3,
+          "node": 5,
+          "truck": 3,
+          "value": 1
+        }
+      ]
+    },
+    {
+      "cpu_seconds": 23.675682200002484,
+      "drone_routes": {
+        "1": [
+          0,
+          23,
+          19,
+          12,
+          8,
+          34,
+          0
+        ],
+        "2": [
+          0,
+          2,
+          33,
+          39,
+          0
+        ]
+      },
+      "feasible": true,
+      "initial_backbone_reused": true,
+      "initial_backbone_sha256": "935b645cde777cfc02fceae40bed5c0fceca934bc193c9f9aed294bbc820a020",
+      "instance_id": "S0037_R01",
+      "iterations": 11.0,
+      "method": "no_unpairing",
+      "objective": 8303.043055246517,
+      "rendezvous_associations": [
+        {
+          "cross_truck_recovery": false,
+          "customer_id": 8,
+          "drone_id": 1,
+          "launch_node": 12,
+          "launch_truck": 1,
+          "recovery_node": 34,
+          "recovery_truck": 1,
+          "source_truck_from_initial_backbone": 1
+        },
+        {
+          "cross_truck_recovery": true,
+          "customer_id": 19,
+          "drone_id": 1,
+          "launch_node": 23,
+          "launch_truck": 2,
+          "recovery_node": 34,
+          "recovery_truck": 1,
+          "source_truck_from_initial_backbone": 2
+        },
+        {
+          "cross_truck_recovery": false,
+          "customer_id": 33,
+          "drone_id": 2,
+          "launch_node": 2,
+          "launch_truck": 1,
+          "recovery_node": 39,
+          "recovery_truck": 1,
+          "source_truck_from_initial_backbone": 1
+        }
+      ],
+      "size": 50,
+      "status": "baseline_no_unpairing",
+      "truck_routes": {
+        "1": [
+          0,
+          1,
+          2,
+          11,
+          37,
+          9,
+          3,
+          4,
+          6,
+          5,
+          12,
+          38,
+          27,
+          26,
+          39,
+          45,
+          44,
+          36,
+          40,
+          10,
+          34,
+          7,
+          49,
+          0
+        ],
+        "2": [
+          0,
+          14,
+          13,
+          28,
+          23,
+          30,
+          32,
+          22,
+          20,
+          18,
+          46,
+          47,
+          43,
+          42,
+          48,
+          0
+        ],
+        "3": [
+          0,
+          29,
+          25,
+          15,
+          16,
+          17,
+          21,
+          31,
+          24,
+          41,
+          35,
+          50,
+          0
+        ]
+      },
+      "validation_findings": [
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 1 arrives after ub at customer 34",
+          "node": 34,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 42",
+          "node": 42,
+          "severity": "WARN",
+          "vehicle": "truck"
+        }
+      ],
+      "z1_launch_or_reload_events": [
+        {
+          "drone": 2,
+          "node": 2,
+          "truck": 1,
+          "value": 1
+        },
+        {
+          "drone": 1,
+          "node": 23,
+          "truck": 2,
+          "value": 1
+        },
+        {
+          "drone": 1,
+          "node": 12,
+          "truck": 1,
+          "value": 1
+        }
+      ],
+      "z2_recovery_or_swap_events": [
+        {
+          "drone": 2,
+          "node": 39,
+          "truck": 1,
+          "value": 1
+        },
+        {
+          "drone": 1,
+          "node": 34,
+          "truck": 1,
+          "value": 1
+        }
+      ]
+    },
+    {
+      "cpu_seconds": 120.14613979996648,
+      "drone_routes": {
+        "1": [
+          0,
+          21,
+          24,
+          0
+        ],
+        "2": [
+          0,
+          5,
+          68,
+          74,
+          0
+        ],
+        "3": [
+          0,
+          45,
+          42,
+          52,
+          30,
+          3,
+          69,
+          0
+        ]
+      },
+      "feasible": true,
+      "initial_backbone_reused": true,
+      "initial_backbone_sha256": "bfbbd826ab024148071e93d87978c31d1e7586a06e1dec000ef29a88e748cbb8",
+      "instance_id": "S0053_R01",
+      "iterations": 14.0,
+      "method": "no_unpairing",
+      "objective": 15101.163132101308,
+      "rendezvous_associations": [
+        {
+          "cross_truck_recovery": false,
+          "customer_id": 21,
+          "drone_id": 1,
+          "launch_node": 0,
+          "launch_truck": null,
+          "recovery_node": 24,
+          "recovery_truck": 2,
+          "source_truck_from_initial_backbone": 2
+        },
+        {
+          "cross_truck_recovery": false,
+          "customer_id": 68,
+          "drone_id": 2,
+          "launch_node": 5,
+          "launch_truck": 1,
+          "recovery_node": 74,
+          "recovery_truck": 1,
+          "source_truck_from_initial_backbone": 1
+        },
+        {
+          "cross_truck_recovery": false,
+          "customer_id": 3,
+          "drone_id": 3,
+          "launch_node": 30,
+          "launch_truck": 2,
+          "recovery_node": 69,
+          "recovery_truck": 2,
+          "source_truck_from_initial_backbone": 2
+        },
+        {
+          "cross_truck_recovery": false,
+          "customer_id": 45,
+          "drone_id": 3,
+          "launch_node": 0,
+          "launch_truck": null,
+          "recovery_node": 69,
+          "recovery_truck": 2,
+          "source_truck_from_initial_backbone": 1
+        },
+        {
+          "cross_truck_recovery": true,
+          "customer_id": 52,
+          "drone_id": 3,
+          "launch_node": 42,
+          "launch_truck": 1,
+          "recovery_node": 69,
+          "recovery_truck": 2,
+          "source_truck_from_initial_backbone": 1
+        }
+      ],
+      "size": 75,
+      "status": "baseline_no_unpairing",
+      "truck_routes": {
+        "1": [
+          0,
+          36,
+          39,
+          43,
+          40,
+          22,
+          20,
+          42,
+          35,
+          23,
+          26,
+          70,
+          44,
+          1,
+          19,
+          65,
+          18,
+          66,
+          50,
+          55,
+          61,
+          64,
+          41,
+          63,
+          5,
+          74,
+          0
+        ],
+        "2": [
+          0,
+          49,
+          57,
+          54,
+          15,
+          29,
+          32,
+          10,
+          46,
+          8,
+          30,
+          27,
+          11,
+          25,
+          13,
+          14,
+          31,
+          2,
+          24,
+          69,
+          71,
+          73,
+          75,
+          0
+        ],
+        "3": [
+          0,
+          48,
+          62,
+          51,
+          60,
+          56,
+          59,
+          58,
+          37,
+          34,
+          16,
+          38,
+          7,
+          17,
+          9,
+          28,
+          33,
+          6,
+          67,
+          53,
+          47,
+          12,
+          4,
+          72,
+          0
+        ]
+      },
+      "validation_findings": [
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 1 arrives after ub at customer 70",
+          "node": 70,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 1 arrives after ub at customer 1",
+          "node": 1,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 1 arrives after ub at customer 55",
+          "node": 55,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 1 arrives after ub at customer 64",
+          "node": 64,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 1 arrives after ub at customer 41",
+          "node": 41,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 1 arrives after ub at customer 74",
+          "node": 74,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 8",
+          "node": 8,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 30",
+          "node": 30,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 13",
+          "node": 13,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 31",
+          "node": 31,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 24",
+          "node": 24,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 71",
+          "node": 71,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 73",
+          "node": 73,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 2 arrives after ub at customer 75",
+          "node": 75,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 33",
+          "node": 33,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 67",
+          "node": 67,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 12",
+          "node": 12,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Truck 3 arrives after ub at customer 4",
+          "node": 4,
+          "severity": "WARN",
+          "vehicle": "truck"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Drone 2 arrives after ub at customer 68",
+          "node": 68,
+          "severity": "WARN",
+          "vehicle": "drone"
+        },
+        {
+          "code": "TW_TARDINESS",
+          "message": "Drone 3 arrives after ub at customer 3",
+          "node": 3,
+          "severity": "WARN",
+          "vehicle": "drone"
+        }
+      ],
+      "z1_launch_or_reload_events": [
+        {
+          "drone": 2,
+          "node": 5,
+          "truck": 1,
+          "value": 1
+        },
+        {
+          "drone": 3,
+          "node": 42,
+          "truck": 1,
+          "value": 1
+        },
+        {
+          "drone": 3,
+          "node": 30,
+          "truck": 2,
+          "value": 1
+        }
+      ],
+      "z2_recovery_or_swap_events": [
+        {
+          "drone": 2,
+          "node": 74,
+          "truck": 1,
+          "value": 1
+        },
+        {
+          "drone": 1,
+          "node": 24,
+          "truck": 2,
+          "value": 1
+        },
+        {
+          "drone": 3,
+          "node": 69,
+          "truck": 2,
+          "value": 1
+        }
+      ]
+    }
+  ],
+  "note": "These are diagnostic replays, not replacements for the completed matched-run rows; wall-clock cutoffs can change search trajectories.",
+  "replay_execution_commit": "f19a5bf4b743d0635125b40f2f35275b1e130b3a",
+  "replay_finished_at_utc": "2026-11-06T04:53:03.039523+00:00",
+  "replay_started_at_utc": "2026-11-06T04:49:55.339812+00:00",
+  "updated_at_utc": "2026-11-06T04:53:03.027162+00:00"
+}

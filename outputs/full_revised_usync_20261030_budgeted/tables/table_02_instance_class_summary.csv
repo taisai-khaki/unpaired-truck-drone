@@ -1,0 +1,5 @@
+scenario_class,n,spatial_pattern,endurance_level,eligible_share_target,number_of_drones,number_of_generated_instances
+n15_p0.25_d1_clustered_Elow_V1.25_Hmedium_PWstrict_B0.10,15,clustered,low,0.25,1,10
+n15_p0.25_d1_clustered_Elow_V1.25_Hshort_PWmoderate_B0.10,15,clustered,low,0.25,1,10
+n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWflat_B0.10,15,uniform,low,0.25,1,10
+n15_p0.25_d1_uniform_Elow_V2.00_Hshort_PWmoderate_B0.10,15,uniform,low,0.25,1,6

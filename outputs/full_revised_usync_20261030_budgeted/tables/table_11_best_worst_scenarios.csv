@@ -1,0 +1,5 @@
+scenario_id,n,eligible_share_target,number_of_drones,endurance_level,speed_ratio,launch_retrieval_time_class,spatial_pattern,avg_improvement,drone_service_share,truck_distance_reduction_pct,total_truck_waiting_time,total_drone_waiting_time,delayed_rendezvous_events,average_battery_usage_ratio,analysis_method,segment,dominant_reason
+S0002,15,0.25,1,low,1.25,medium,clustered,93.8126897064114,0.12666666666666665,2.1819459938925077,2.379465157142569,25.46870346930708,0.9,0.6531984910294523,nils,best,Synchronization burden dominates
+S0004,15,0.25,1,low,2.0,short,uniform,86.43195645915819,0.13333333333333333,9.965730936858654,3.787823538507125,35.08929718545422,1.0,0.6545201565853895,nils,best,Synchronization burden dominates
+S0001,15,0.25,1,low,1.25,short,clustered,76.40662071884039,0.1,2.9975444860917384,0.0,17.988776581580584,0.6,0.5408862473418263,nils,worst,Synchronization burden dominates
+S0003,15,0.25,1,low,2.0,short,uniform,46.43033068161641,0.11333333333333333,21.139236024399427,2.7321984882646904,22.79232778028549,0.7,0.5707038616075032,nils,worst,Synchronization burden dominates

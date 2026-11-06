@@ -1,0 +1,2 @@
+method_name,n_runs,avg_objective,avg_improvement,avg_cpu_time,feasibility_rate
+nils,483,19090.50149968266,76.98118526099185,176.40082105296986,1.0

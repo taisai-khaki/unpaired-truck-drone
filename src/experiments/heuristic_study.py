@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+import hashlib
 import json
 import math
 import time
@@ -548,7 +549,13 @@ def _passes_preprocessing_feasibility(instance: InstanceData) -> bool:
     return True
 
 
-def _run_method(instance: InstanceData, config: SearchConfig, method_name: str) -> SolutionData:
+def _run_method(
+    instance: InstanceData,
+    config: SearchConfig,
+    method_name: str,
+    *,
+    initial_truck_routes: Dict[int, List[int]] | None = None,
+) -> SolutionData:
     if method_name == "truck_only":
         return truck_only_baseline(instance, config).solution
     if method_name == "simple_drone":
@@ -556,11 +563,11 @@ def _run_method(instance: InstanceData, config: SearchConfig, method_name: str) 
     if method_name == "random_feasible":
         return random_feasible_reassignment_baseline(instance, config).solution
     if method_name == "paired_baseline":
-        return paired_baseline(instance, config).solution
+        return paired_baseline(instance, config, initial_truck_routes=initial_truck_routes).solution
     if method_name == "no_priority":
         return no_priority_baseline(instance, config).solution
     if method_name == "no_unpairing":
-        return no_unpairing_baseline(instance, config).solution
+        return no_unpairing_baseline(instance, config, initial_truck_routes=initial_truck_routes).solution
     if method_name == "nils":
         return run_nils(
             instance,
@@ -570,6 +577,7 @@ def _run_method(instance: InstanceData, config: SearchConfig, method_name: str) 
             time_limit=config.heuristics.time_limit_seconds,
             max_displacement_candidates=config.heuristics.max_displacement_candidates,
             max_repair_candidates=config.heuristics.max_repair_candidates,
+            initial_truck_routes=initial_truck_routes,
         )
     if method_name == "nils_soft_drone_target":
         return nils_soft_drone_target_baseline(instance, config).solution
@@ -584,6 +592,97 @@ def _run_method(instance: InstanceData, config: SearchConfig, method_name: str) 
     if method_name == "feasibility_aware_alns":
         return feasibility_aware_alns_baseline(instance, config).solution
     raise ValueError(f"Unsupported method_name: {method_name}")
+
+
+_COMMON_BACKBONE_METHODS = {"paired_baseline", "no_unpairing", "nils"}
+
+
+def _canonical_truck_routes(routes: Dict[int, List[int]]) -> Dict[str, List[int]]:
+    return {
+        str(int(truck_id)): [int(node) for node in route]
+        for truck_id, route in sorted(routes.items(), key=lambda item: int(item[0]))
+    }
+
+
+def _truck_routes_sha256(routes: Dict[int, List[int]]) -> str:
+    payload = json.dumps(_canonical_truck_routes(routes), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _persist_json_atomically(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def _load_or_create_common_truck_backbone(
+    instance: InstanceData,
+    raw_instance_path: Path,
+    backbone_dir: Path,
+    config: SearchConfig,
+) -> Tuple[Dict[int, List[int]], float]:
+    """Load or build one feasible, persisted truck start shared by M3/M4/M5."""
+    cache_path = backbone_dir / f"{instance.name}.json"
+    instance_sha256 = hashlib.sha256(raw_instance_path.read_bytes()).hexdigest()
+    if cache_path.exists():
+        entry = json.loads(cache_path.read_text(encoding="utf-8"))
+        if entry.get("source_instance_sha256") != instance_sha256:
+            raise RuntimeError(f"Persisted backbone belongs to a different instance: {cache_path}")
+        routes = {
+            int(truck_id): [int(node) for node in route]
+            for truck_id, route in entry["truck_routes"].items()
+        }
+        if entry.get("truck_routes_sha256") != _truck_routes_sha256(routes):
+            raise RuntimeError(f"Persisted backbone hash mismatch: {cache_path}")
+        check = run_nils(
+            instance,
+            seed=config.heuristics.random_seed,
+            max_iter=0,
+            max_no_improve=max(1, config.heuristics.max_no_improve),
+            time_limit=0,
+            max_displacement_candidates=config.heuristics.max_displacement_candidates,
+            max_repair_candidates=config.heuristics.max_repair_candidates,
+            initial_truck_routes=routes,
+            require_feasible_incumbent=False,
+        )
+        if not is_feasible(instance, check) or check.truck_routes != routes:
+            raise RuntimeError(f"Persisted backbone is not an unchanged feasible start: {cache_path}")
+        return routes, float(entry.get("generation_cpu_seconds", 0.0))
+
+    started = time.monotonic()
+    initial = run_nils(
+        instance,
+        seed=config.heuristics.random_seed,
+        max_iter=0,
+        max_no_improve=max(1, config.heuristics.max_no_improve),
+        time_limit=0,
+        max_displacement_candidates=config.heuristics.max_displacement_candidates,
+        max_repair_candidates=config.heuristics.max_repair_candidates,
+        initialization_mode="greedy",
+        initialization_time_limit_seconds=3,
+    )
+    generation_cpu_seconds = time.monotonic() - started
+    if not is_feasible(instance, initial):
+        raise RuntimeError(
+            f"Could not construct a feasible common truck backbone for {instance.name}: {initial.status}"
+        )
+    routes = {
+        int(truck_id): [int(node) for node in route]
+        for truck_id, route in initial.truck_routes.items()
+    }
+    entry = {
+        "instance_id": instance.name,
+        "source_instance_sha256": instance_sha256,
+        "truck_routes_sha256": _truck_routes_sha256(routes),
+        "truck_routes": _canonical_truck_routes(routes),
+        "initialization_status": str(initial.status),
+        "initialization_feasible": True,
+        "initialization_seed": int(config.heuristics.random_seed),
+        "generation_cpu_seconds": float(generation_cpu_seconds),
+    }
+    _persist_json_atomically(cache_path, entry)
+    return routes, generation_cpu_seconds
 
 
 def _route_distance(route: List[int], coords: Dict[int, Tuple[float, float]], *, metric: str) -> float:
@@ -1851,6 +1950,8 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
 
     raw_dir = target_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
+    backbone_dir = raw_dir / "initial_truck_backbones"
+    common_backbone_methods = set(methods).intersection(_COMMON_BACKBONE_METHODS)
     checkpoint_file = Path(str(exp_cfg.get("study_checkpoint_file", "checkpoints/heuristic_study_rows.jsonl")))
     if not checkpoint_file.is_absolute():
         checkpoint_file = target_dir / checkpoint_file
@@ -1950,6 +2051,36 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
             instance_cache[instance_id] = instance
             instance_had_new_result = False
 
+            initial_truck_routes: Dict[int, List[int]] | None = None
+            backbone_generation_cpu_seconds = 0.0
+            backbone_sha256 = ""
+            if common_backbone_methods:
+                backbone_path = backbone_dir / f"{instance_id}.json"
+                prior_architecture_rows = [
+                    row
+                    for row in rows
+                    if str(row.get("instance_id", "")) == instance_id
+                    and str(row.get("method_name", "")) in common_backbone_methods
+                ]
+                if prior_architecture_rows and not backbone_path.exists():
+                    raise RuntimeError(
+                        f"Cannot resume architecture rows for {instance_id}: the shared initial backbone was not persisted"
+                    )
+                initial_truck_routes, backbone_generation_cpu_seconds = _load_or_create_common_truck_backbone(
+                    instance,
+                    raw_dir / f"{instance_id}.json",
+                    backbone_dir,
+                    scenario_cfg,
+                )
+                backbone_sha256 = _truck_routes_sha256(initial_truck_routes)
+                if any(
+                    str(row.get("initial_truck_backbone_sha256", "")) != backbone_sha256
+                    for row in prior_architecture_rows
+                ):
+                    raise RuntimeError(
+                        f"Cannot resume architecture rows for {instance_id}: their starting backbone differs"
+                    )
+
             for method_name in methods:
                 method_key = (instance_id, method_name)
                 if method_key in checkpoint_keys:
@@ -1958,7 +2089,17 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                 _log(progress_path, f"  {instance_id} | method={method_name} | start")
                 t0 = time.time()
                 try:
-                    solution = _run_method(instance, scenario_cfg, method_name)
+                    method_backbone = (
+                        initial_truck_routes
+                        if method_name in _COMMON_BACKBONE_METHODS
+                        else None
+                    )
+                    solution = _run_method(
+                        instance,
+                        scenario_cfg,
+                        method_name,
+                        initial_truck_routes=method_backbone,
+                    )
                     if force_feasible_outputs and not is_feasible(instance, solution):
                         repaired = _repair_infeasible_solution(
                             instance,
@@ -1979,6 +2120,14 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                     solution.run_time_seconds = float(solution.run_time_seconds or (time.time() - t0))
                     row = _collect_row(instance, solution, scenario, method_name)
                     row["cpu_time_seconds"] = float(time.time() - t0)
+                    row["initial_truck_backbone_sha256"] = backbone_sha256 if method_backbone is not None else ""
+                    row["initial_truck_backbone_reused"] = bool(
+                        method_backbone is not None
+                        and solution.components.get("initial_backbone_reused", 0.0) >= 0.5
+                    )
+                    row["common_backbone_generation_cpu_seconds"] = (
+                        backbone_generation_cpu_seconds if method_backbone is not None else 0.0
+                    )
                     rows.append(row)
                     _append_study_checkpoint(checkpoint_file, row)
                     checkpoint_keys.add(method_key)
@@ -2067,6 +2216,11 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                             "infeasible_battery_attempts_rejected": float("nan"),
                             "eligible_not_assigned_due_battery": float("nan"),
                             "cpu_time_seconds": float(time.time() - t0),
+                            "initial_truck_backbone_sha256": backbone_sha256
+                            if method_name in _COMMON_BACKBONE_METHODS else "",
+                            "initial_truck_backbone_reused": False,
+                            "common_backbone_generation_cpu_seconds": backbone_generation_cpu_seconds
+                            if method_name in _COMMON_BACKBONE_METHODS else 0.0,
                             "iterations": float("nan"),
                             "improving_moves_accepted": float("nan"),
                             "candidate_reassignments_evaluated": float("nan"),

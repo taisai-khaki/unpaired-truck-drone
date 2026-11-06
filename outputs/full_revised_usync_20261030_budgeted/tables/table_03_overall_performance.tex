@@ -1,0 +1,12 @@
+% tab:overall
+% Overall performance comparison by method
+\begin{tabular}{lrrrrrrrrrrrrr}
+\toprule
+method_name & n_runs & feasible_runs & feasibility_rate & average_objective & std_dev & avg_improvement_vs_truck_only & avg_makespan & avg_cpu_time & avg_drone_service_share & reporting_included_runs & avg_objective_feasible_only & avg_objective_infeasible_only & reporting_inclusion_rate \\
+\midrule
+nils & 36 & 36 & 1.0000 & 229.5954 & 695.9556 & 74.5858 & 125.1007 & 4.5517 & 0.1167 & 36 & 229.5954 & NaN & 1.0000 \\
+nils_r & 36 & 36 & 1.0000 & 233.6018 & 697.2673 & 75.2306 & 125.7643 & 5.4025 & 0.1000 & 36 & 233.6018 & NaN & 1.0000 \\
+feasibility_aware_alns & 36 & 36 & 1.0000 & 753.4604 & 1061.1643 & 22.1561 & 132.8067 & 2.9002 & 0.0167 & 36 & 753.4604 & NaN & 1.0000 \\
+truck_only & 36 & 36 & 1.0000 & 6751.6002 & 10987.4761 & NaN & 189.4561 & 0.0052 & 0.0000 & 36 & 6751.6002 & NaN & 1.0000 \\
+\bottomrule
+\end{tabular}
