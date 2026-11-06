@@ -116,6 +116,8 @@ class HeuristicConfig:
     max_no_improve: int = 5
     time_limit_seconds: int = 600
     random_seed: int = 2026
+    max_displacement_candidates: int = 0
+    max_repair_candidates: int = 0
 
 
 @dataclass(frozen=True)
@@ -270,7 +272,11 @@ def build_search_config(data: Dict[str, Any]) -> SearchConfig:
         max_no_improve=int((heur_raw or {}).get("max_no_improve", 5)),
         time_limit_seconds=int((heur_raw or {}).get("time_limit_seconds", 600)),
         random_seed=int((heur_raw or {}).get("random_seed", int(data.get("seed", 2026)))),
+        max_displacement_candidates=int((heur_raw or {}).get("max_displacement_candidates", 0)),
+        max_repair_candidates=int((heur_raw or {}).get("max_repair_candidates", 0)),
     )
+    if heuristics.max_displacement_candidates < 0 or heuristics.max_repair_candidates < 0:
+        raise ValueError("NILS candidate caps must be non-negative; use 0 for unlimited")
 
     constraints_raw = data.get("constraints", {})
     constraints = ConstraintConfig(

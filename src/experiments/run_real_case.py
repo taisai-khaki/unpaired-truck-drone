@@ -234,6 +234,8 @@ def _run_methods(instance: InstanceData, config: SearchConfig) -> Dict[str, Solu
             max_no_improve=config.heuristics.max_no_improve,
             time_limit=config.heuristics.time_limit_seconds,
             battery_slack_ratio=float(instance.metadata.get("battery_slack_ratio", 0.10)),
+            max_displacement_candidates=config.heuristics.max_displacement_candidates,
+            max_repair_candidates=config.heuristics.max_repair_candidates,
         ),
         "nils_no_local_search": lambda: nils_no_local_search_baseline(instance, config).solution,
         "nils_no_perturbation": lambda: nils_no_perturbation_baseline(instance, config).solution,

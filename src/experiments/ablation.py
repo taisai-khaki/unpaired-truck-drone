@@ -28,6 +28,8 @@ def run_ablation(config: SearchConfig, output_dir: str | None = None) -> pd.Data
             max_iter=config.heuristics.max_outer_iter,
             max_no_improve=config.heuristics.max_no_improve,
             time_limit=config.heuristics.time_limit_seconds,
+            max_displacement_candidates=config.heuristics.max_displacement_candidates,
+            max_repair_candidates=config.heuristics.max_repair_candidates,
         )
         baselines = run_all_baselines(inst, config)
         baseline_map: Dict[str, Any] = {item.name: item for item in baselines}

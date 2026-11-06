@@ -40,6 +40,8 @@ def run_large_heuristic(config: SearchConfig, output_dir: str | None = None) -> 
             max_iter=config.heuristics.max_outer_iter,
             max_no_improve=config.heuristics.max_no_improve,
             time_limit=config.heuristics.time_limit_seconds,
+            max_displacement_candidates=config.heuristics.max_displacement_candidates,
+            max_repair_candidates=config.heuristics.max_repair_candidates,
         )
         usage = summarize_drone_usage(sol)
         results.append(

@@ -301,6 +301,8 @@ def _run_nils_multistart(
             repair_infeasible_candidates=bool(exp_cfg.get("small_repair_infeasible_candidates", True)),
             repair_max_steps=int(exp_cfg.get("small_repair_max_steps", 4)),
             battery_slack_ratio=battery_slack_ratio,
+            max_displacement_candidates=config.heuristics.max_displacement_candidates,
+            max_repair_candidates=config.heuristics.max_repair_candidates,
         )
         candidate_feasible = is_feasible(instance, candidate)
         if candidate_feasible:

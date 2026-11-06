@@ -18,7 +18,7 @@ from ..timing import (
     synchronization_handling_minutes,
 )
 from .acceptance import metropolis
-from .construction import build_initial_solution
+from .construction import _fill_solution_from_routes, build_initial_solution
 from .local_search import apply_two_opt_to_solution
 from .perturbation import relocate_random_customer
 
@@ -855,6 +855,7 @@ def _select_best_strict_candidate(
         if stats is not None:
             stats["strict_feasibility_checks"] += 1
         if is_feasible(instance, candidate):
+            _add_stat(stats, "displacement_candidates_strict_feasible")
             candidate.components = dict(candidate.components)
             candidate.components["_strict_feasibility_checked"] = 1.0
             return candidate
@@ -862,6 +863,28 @@ def _select_best_strict_candidate(
             stats["infeasible_candidate_rejections"] += 1
         idx += 1
     return None
+
+
+def _add_stat(stats: Dict[str, int] | None, key: str, value: int = 1) -> None:
+    if stats is not None:
+        stats[key] = stats.get(key, 0) + int(value)
+
+
+class _CandidateReservoir:
+    def __init__(self, cap: int, rng: np.random.Generator | None) -> None:
+        self.cap = max(0, int(cap))
+        self.rng = rng if rng is not None else np.random.default_rng(0)
+        self.descriptors: list[tuple] = []
+        self.generated = 0
+
+    def add(self, descriptor: tuple) -> None:
+        self.generated += 1
+        if self.cap == 0 or len(self.descriptors) < self.cap:
+            self.descriptors.append(descriptor)
+            return
+        replacement_index = int(self.rng.integers(self.generated))
+        if replacement_index < self.cap:
+            self.descriptors[replacement_index] = descriptor
 
 
 def move_to_drone(
@@ -1062,19 +1085,21 @@ def _extract_best_displacement(
     battery_aware_screening: bool,
     battery_slack_ratio: float,
     strict_check_cap: int,
+    max_candidates: int = 0,
+    rng: np.random.Generator | None = None,
     tabu_moves: set[Tuple[int, int, int]] | None = None,
     stats: Dict[str, int] | None = None,
     deadline: float | None = None,
 ) -> SolutionData | None:
     ranked_candidates: List[Tuple[float, SolutionData, Tuple[int, int, int]]] = []
+    reservoir = _CandidateReservoir(max_candidates, rng)
     deadline_reached = False
 
     for customer in range(1, instance.num_customers + 1):
         if deadline is not None and time.monotonic() >= deadline:
             deadline_reached = True
             break
-        if stats is not None:
-            stats["displacement_customers_scanned"] += 1
+        _add_stat(stats, "displacement_customers_scanned")
         if customer not in eligible_customers:
             continue
         truck_served = any(solution.u_truck.get((t, customer), 0) == 1 for t in instance.truck_ids())
@@ -1089,55 +1114,61 @@ def _extract_best_displacement(
             if tabu_moves is not None and move_key in tabu_moves:
                 continue
             sortie_options = _m5_sortie_options(instance, solution, customer, source_truck)
-            if stats is not None:
-                stats["displacement_sortie_options_generated"] += len(sortie_options)
+            _add_stat(stats, "displacement_sortie_options_generated", len(sortie_options))
             for launch_node, recovery_node, launch_truck, recovery_truck in sortie_options:
-                if deadline is not None and time.monotonic() >= deadline:
-                    deadline_reached = True
-                    break
-                candidate = move_to_drone(
-                    instance,
-                    solution,
-                    customer,
-                    d,
-                    launch_node=launch_node,
-                    recovery_node=recovery_node,
-                    source_truck=source_truck,
-                    launch_truck=launch_truck,
-                    recovery_truck=recovery_truck,
-                    enforce_battery=battery_aware_screening,
-                    battery_slack_ratio=battery_slack_ratio,
+                reservoir.add(
+                    (customer, d, source_truck, launch_node, recovery_node, launch_truck, recovery_truck, move_key)
                 )
-                if candidate is None:
-                    if battery_aware_screening and stats is not None:
-                        stats["battery_infeasible_rejections"] += 1
-                    continue
-                if not _quick_local_feasible(
-                    instance,
-                    candidate,
-                    moved_customer=customer,
-                    drone=d,
-                    coords=coords,
-                    source_truck=source_truck if source_truck > 0 else None,
-                    launch_node=launch_node,
-                    recovery_node=recovery_node,
-                    launch_truck=launch_truck,
-                    recovery_truck=recovery_truck,
-                    battery_slack_ratio=battery_slack_ratio,
-                ):
-                    if stats is not None:
-                        stats["local_screen_rejections"] += 1
-                    continue
-                if stats is not None:
-                    stats["candidate_reassignments_evaluated"] += 1
-                obj, comp = evaluate_solution(instance, candidate)
-                candidate.objective = obj
-                candidate.components = comp
-                ranked_candidates.append((obj, candidate, move_key))
-            if deadline_reached:
-                break
+                _add_stat(stats, "displacement_candidates_generated")
         if deadline_reached:
             break
+
+    selected = reservoir.descriptors
+    _add_stat(stats, "displacement_candidates_retained", len(selected))
+    for customer, drone, source_truck, launch_node, recovery_node, launch_truck, recovery_truck, move_key in selected:
+        if deadline is not None and time.monotonic() >= deadline:
+            deadline_reached = True
+            break
+        _add_stat(stats, "displacement_candidates_screened")
+        candidate = move_to_drone(
+            instance,
+            solution,
+            customer,
+            drone,
+            launch_node=launch_node,
+            recovery_node=recovery_node,
+            source_truck=source_truck,
+            launch_truck=launch_truck,
+            recovery_truck=recovery_truck,
+            enforce_battery=battery_aware_screening,
+            battery_slack_ratio=battery_slack_ratio,
+        )
+        if candidate is None:
+            if battery_aware_screening and stats is not None:
+                stats["battery_infeasible_rejections"] += 1
+            continue
+        if not _quick_local_feasible(
+            instance,
+            candidate,
+            moved_customer=customer,
+            drone=drone,
+            coords=coords,
+            source_truck=source_truck if source_truck > 0 else None,
+            launch_node=launch_node,
+            recovery_node=recovery_node,
+            launch_truck=launch_truck,
+            recovery_truck=recovery_truck,
+            battery_slack_ratio=battery_slack_ratio,
+        ):
+            if stats is not None:
+                stats["local_screen_rejections"] += 1
+            continue
+        _add_stat(stats, "displacement_candidates_fully_evaluated")
+        _add_stat(stats, "candidate_reassignments_evaluated")
+        obj, comp = evaluate_solution(instance, candidate)
+        candidate.objective = obj
+        candidate.components = comp
+        ranked_candidates.append((obj, candidate, move_key))
     if deadline_reached and stats is not None:
         stats["displacement_deadline_terminated"] = 1
     return _select_best_strict_candidate(
@@ -1160,11 +1191,15 @@ def _extract_best_paired_displacement(
     battery_aware_screening: bool,
     battery_slack_ratio: float,
     strict_check_cap: int,
+    max_candidates: int = 0,
+    rng: np.random.Generator | None = None,
     tabu_moves: set[Tuple[int, int, int]] | None = None,
     stats: Dict[str, int] | None = None,
     deadline: float | None = None,
 ) -> SolutionData | None:
     ranked_candidates: List[Tuple[float, SolutionData, Tuple[int, int, int]]] = []
+    reservoir = _CandidateReservoir(max_candidates, rng)
+    descriptor_counts: Dict[Tuple[int, int, int], int] = {}
     deadline_reached = False
 
     for drone, truck in drone_to_truck.items():
@@ -1186,10 +1221,10 @@ def _extract_best_paired_displacement(
                 continue
             if solution.u_truck.get((truck, customer), 0) != 1:
                 continue
+            _add_stat(stats, "displacement_customers_scanned")
             move_key = (customer, drone, truck)
             if tabu_moves is not None and move_key in tabu_moves:
                 continue
-            found_feasible_for_key = False
             for launch_idx in range(0, customer_idx):
                 if deadline is not None and time.monotonic() >= deadline:
                     deadline_reached = True
@@ -1202,64 +1237,81 @@ def _extract_best_paired_displacement(
                     recovery_node = route[recovery_idx]
                     if recovery_node == launch_node or recovery_node == customer:
                         continue
-                    if battery_aware_screening:
-                        if not _paired_trip_feasible(
-                            instance,
-                            drone,
-                            launch_node,
-                            customer,
-                            recovery_node,
-                            coords,
-                            battery_slack_ratio=battery_slack_ratio,
-                        ):
-                            if stats is not None:
-                                stats["battery_infeasible_rejections"] += 1
-                                stats["battery_slack_rejections"] += 1
-                            continue
-                    candidate = move_to_drone(
-                        instance,
-                        solution,
-                        customer,
-                        drone,
-                        launch_node=launch_node,
-                        recovery_node=recovery_node,
-                        source_truck=truck,
-                        enforce_battery=battery_aware_screening,
-                        battery_slack_ratio=battery_slack_ratio,
-                    )
-                    if candidate is None:
-                        if battery_aware_screening and stats is not None:
-                            stats["battery_infeasible_rejections"] += 1
-                        continue
-                    if not _quick_local_feasible(
-                        instance,
-                        candidate,
-                        moved_customer=customer,
-                        drone=drone,
-                        coords=coords,
-                        source_truck=truck,
-                        launch_node=launch_node,
-                        recovery_node=recovery_node,
-                        battery_slack_ratio=battery_slack_ratio,
-                    ):
-                        if stats is not None:
-                            stats["local_screen_rejections"] += 1
-                        continue
-                    found_feasible_for_key = True
-                    if stats is not None:
-                        stats["candidate_reassignments_evaluated"] += 1
-                    obj, comp = evaluate_solution(instance, candidate)
-                    candidate.objective = obj
-                    candidate.components = comp
-                    ranked_candidates.append((obj, candidate, move_key))
+                    reservoir.add((customer, drone, truck, launch_node, recovery_node, move_key))
+                    descriptor_counts[move_key] = descriptor_counts.get(move_key, 0) + 1
+                    _add_stat(stats, "displacement_candidates_generated")
                 if deadline_reached:
                     break
             if deadline_reached:
                 break
-            if not found_feasible_for_key and tabu_moves is not None:
-                tabu_moves.add(move_key)
         if deadline_reached:
             break
+
+    _add_stat(stats, "displacement_sortie_options_generated", reservoir.generated)
+    selected = reservoir.descriptors
+    _add_stat(stats, "displacement_candidates_retained", len(selected))
+    selected_counts: Dict[Tuple[int, int, int], int] = {}
+    found_screened_candidate: set[Tuple[int, int, int]] = set()
+    for customer, drone, truck, launch_node, recovery_node, move_key in selected:
+        if deadline is not None and time.monotonic() >= deadline:
+            deadline_reached = True
+            break
+        _add_stat(stats, "displacement_candidates_screened")
+        selected_counts[move_key] = selected_counts.get(move_key, 0) + 1
+        if battery_aware_screening and not _paired_trip_feasible(
+            instance,
+            drone,
+            launch_node,
+            customer,
+            recovery_node,
+            coords,
+            battery_slack_ratio=battery_slack_ratio,
+        ):
+            if stats is not None:
+                stats["battery_infeasible_rejections"] += 1
+                stats["battery_slack_rejections"] += 1
+            continue
+        candidate = move_to_drone(
+            instance,
+            solution,
+            customer,
+            drone,
+            launch_node=launch_node,
+            recovery_node=recovery_node,
+            source_truck=truck,
+            enforce_battery=battery_aware_screening,
+            battery_slack_ratio=battery_slack_ratio,
+        )
+        if candidate is None:
+            if battery_aware_screening and stats is not None:
+                stats["battery_infeasible_rejections"] += 1
+            continue
+        if not _quick_local_feasible(
+            instance,
+            candidate,
+            moved_customer=customer,
+            drone=drone,
+            coords=coords,
+            source_truck=truck,
+            launch_node=launch_node,
+            recovery_node=recovery_node,
+            battery_slack_ratio=battery_slack_ratio,
+        ):
+            if stats is not None:
+                stats["local_screen_rejections"] += 1
+            continue
+        found_screened_candidate.add(move_key)
+        _add_stat(stats, "displacement_candidates_fully_evaluated")
+        _add_stat(stats, "candidate_reassignments_evaluated")
+        obj, comp = evaluate_solution(instance, candidate)
+        candidate.objective = obj
+        candidate.components = comp
+        ranked_candidates.append((obj, candidate, move_key))
+
+    if tabu_moves is not None and not deadline_reached:
+        for move_key, option_count in descriptor_counts.items():
+            if selected_counts.get(move_key, 0) == option_count and move_key not in found_screened_candidate:
+                tabu_moves.add(move_key)
     if deadline_reached and stats is not None:
         stats["displacement_deadline_terminated"] = 1
     return _select_best_strict_candidate(
@@ -1281,6 +1333,8 @@ def _extract_best_no_unpairing_displacement(
     battery_aware_screening: bool,
     battery_slack_ratio: float,
     strict_check_cap: int,
+    max_candidates: int = 0,
+    rng: np.random.Generator | None = None,
     tabu_moves: set[Tuple[int, int, int]] | None = None,
     stats: Dict[str, int] | None = None,
     deadline: float | None = None,
@@ -1292,6 +1346,8 @@ def _extract_best_no_unpairing_displacement(
     2) at the depot.
     """
     ranked_candidates: List[Tuple[float, SolutionData, Tuple[int, int, int]]] = []
+    reservoir = _CandidateReservoir(max_candidates, rng)
+    descriptor_counts: Dict[Tuple[int, int, int], int] = {}
     deadline_reached = False
 
     for truck in instance.truck_ids():
@@ -1313,6 +1369,7 @@ def _extract_best_no_unpairing_displacement(
                 continue
             if solution.u_truck.get((truck, customer), 0) != 1:
                 continue
+            _add_stat(stats, "displacement_customers_scanned")
 
             for drone in instance.drone_ids():
                 if deadline is not None and time.monotonic() >= deadline:
@@ -1322,7 +1379,6 @@ def _extract_best_no_unpairing_displacement(
                 if tabu_moves is not None and move_key in tabu_moves:
                     continue
 
-                found_feasible_for_key = False
                 for launch_idx in range(0, customer_idx):
                     if deadline is not None and time.monotonic() >= deadline:
                         deadline_reached = True
@@ -1342,70 +1398,84 @@ def _extract_best_no_unpairing_displacement(
                         if recovery_node == customer:
                             continue
 
-                        if battery_aware_screening:
-                            if not _paired_trip_feasible(
-                                instance,
-                                drone,
-                                launch_node,
-                                customer,
-                                recovery_node,
-                                coords,
-                                battery_slack_ratio=battery_slack_ratio,
-                            ):
-                                if stats is not None:
-                                    stats["battery_infeasible_rejections"] += 1
-                                    stats["battery_slack_rejections"] += 1
-                                continue
-
-                        candidate = move_to_drone(
-                            instance,
-                            solution,
-                            customer,
-                            drone,
-                            launch_node=launch_node,
-                            recovery_node=recovery_node,
-                            source_truck=truck,
-                            enforce_battery=battery_aware_screening,
-                            battery_slack_ratio=battery_slack_ratio,
-                        )
-                        if candidate is None:
-                            if battery_aware_screening and stats is not None:
-                                stats["battery_infeasible_rejections"] += 1
-                            continue
-
-                        if not _quick_local_feasible(
-                            instance,
-                            candidate,
-                            moved_customer=customer,
-                            drone=drone,
-                            coords=coords,
-                            source_truck=truck,
-                            launch_node=launch_node,
-                            recovery_node=recovery_node,
-                            battery_slack_ratio=battery_slack_ratio,
-                        ):
-                            if stats is not None:
-                                stats["local_screen_rejections"] += 1
-                            continue
-
-                        found_feasible_for_key = True
-                        if stats is not None:
-                            stats["candidate_reassignments_evaluated"] += 1
-                        obj, comp = evaluate_solution(instance, candidate)
-                        candidate.objective = obj
-                        candidate.components = comp
-                        ranked_candidates.append((obj, candidate, move_key))
+                        reservoir.add((customer, drone, truck, launch_node, recovery_node, move_key))
+                        descriptor_counts[move_key] = descriptor_counts.get(move_key, 0) + 1
+                        _add_stat(stats, "displacement_candidates_generated")
 
                     if deadline_reached:
                         break
                 if deadline_reached:
                     break
-                if not found_feasible_for_key and tabu_moves is not None:
-                    tabu_moves.add(move_key)
             if deadline_reached:
                 break
         if deadline_reached:
             break
+
+    _add_stat(stats, "displacement_sortie_options_generated", reservoir.generated)
+    selected = reservoir.descriptors
+    _add_stat(stats, "displacement_candidates_retained", len(selected))
+    selected_counts: Dict[Tuple[int, int, int], int] = {}
+    found_screened_candidate: set[Tuple[int, int, int]] = set()
+    for customer, drone, truck, launch_node, recovery_node, move_key in selected:
+        if deadline is not None and time.monotonic() >= deadline:
+            deadline_reached = True
+            break
+        _add_stat(stats, "displacement_candidates_screened")
+        selected_counts[move_key] = selected_counts.get(move_key, 0) + 1
+        if battery_aware_screening and not _paired_trip_feasible(
+            instance,
+            drone,
+            launch_node,
+            customer,
+            recovery_node,
+            coords,
+            battery_slack_ratio=battery_slack_ratio,
+        ):
+            if stats is not None:
+                stats["battery_infeasible_rejections"] += 1
+                stats["battery_slack_rejections"] += 1
+            continue
+        candidate = move_to_drone(
+            instance,
+            solution,
+            customer,
+            drone,
+            launch_node=launch_node,
+            recovery_node=recovery_node,
+            source_truck=truck,
+            enforce_battery=battery_aware_screening,
+            battery_slack_ratio=battery_slack_ratio,
+        )
+        if candidate is None:
+            if battery_aware_screening and stats is not None:
+                stats["battery_infeasible_rejections"] += 1
+            continue
+        if not _quick_local_feasible(
+            instance,
+            candidate,
+            moved_customer=customer,
+            drone=drone,
+            coords=coords,
+            source_truck=truck,
+            launch_node=launch_node,
+            recovery_node=recovery_node,
+            battery_slack_ratio=battery_slack_ratio,
+        ):
+            if stats is not None:
+                stats["local_screen_rejections"] += 1
+            continue
+        found_screened_candidate.add(move_key)
+        _add_stat(stats, "displacement_candidates_fully_evaluated")
+        _add_stat(stats, "candidate_reassignments_evaluated")
+        obj, comp = evaluate_solution(instance, candidate)
+        candidate.objective = obj
+        candidate.components = comp
+        ranked_candidates.append((obj, candidate, move_key))
+
+    if tabu_moves is not None and not deadline_reached:
+        for move_key, option_count in descriptor_counts.items():
+            if selected_counts.get(move_key, 0) == option_count and move_key not in found_screened_candidate:
+                tabu_moves.add(move_key)
 
     if deadline_reached and stats is not None:
         stats["displacement_deadline_terminated"] = 1
@@ -1429,6 +1499,8 @@ def _apply_initial_paired_sorties(
     battery_aware_screening: bool,
     battery_slack_ratio: float,
     strict_check_cap: int,
+    max_candidates: int = 0,
+    rng: np.random.Generator | None = None,
     tabu_moves: set[Tuple[int, int, int]] | None = None,
     stats: Dict[str, int] | None = None,
 ) -> SolutionData:
@@ -1446,6 +1518,8 @@ def _apply_initial_paired_sorties(
             battery_aware_screening=battery_aware_screening,
             battery_slack_ratio=battery_slack_ratio,
             strict_check_cap=strict_check_cap,
+            max_candidates=max_candidates,
+            rng=rng,
             tabu_moves=tabu_moves,
             stats=stats,
         )
@@ -1493,60 +1567,66 @@ def _move_customer_back_to_truck(
     customer: int,
     *,
     coords: Dict[int, Tuple[float, float]],
+    candidate_positions: list[tuple[int, int]] | None = None,
+    stats: Dict[str, int] | None = None,
 ) -> SolutionData | None:
     """Try restoring one drone-served customer to a truck route with best local insertion."""
     best: SolutionData | None = None
     best_obj = math.inf
 
-    for truck in instance.truck_ids():
-        base_route = list(solution.truck_routes.get(truck, [0, 0]))
-        if not base_route:
-            base_route = [0, 0]
+    positions = candidate_positions
+    if positions is None:
+        positions = []
+        for truck in instance.truck_ids():
+            route = list(solution.truck_routes.get(truck, [0, 0])) or [0, 0]
+            if route[0] != 0:
+                route.insert(0, 0)
+            if route[-1] != 0:
+                route.append(0)
+            positions.extend((truck, pos) for pos in range(1, len(route)))
+
+    for truck, pos in positions:
+        base_route = list(solution.truck_routes.get(truck, [0, 0])) or [0, 0]
         if base_route[0] != 0:
-            base_route = [0] + base_route
+            base_route.insert(0, 0)
         if base_route[-1] != 0:
-            base_route = base_route + [0]
+            base_route.append(0)
+        if pos < 1 or pos >= len(base_route):
+            continue
 
-        for pos in range(1, len(base_route)):
-            candidate = _empty_solution_clone(solution)
+        candidate = _empty_solution_clone(solution)
+        for d in instance.drone_ids():
+            dr = [n for n in candidate.drone_routes.get(d, [0, 0]) if n != customer]
+            if len(dr) < 2:
+                dr = [0, 0]
+            if dr[0] != 0:
+                dr.insert(0, 0)
+            if dr[-1] != 0:
+                dr.append(0)
+            candidate.drone_routes[d] = dr
+            candidate.u_drone[(d, customer)] = 0
 
-            # Remove customer from all drone routes/assignments.
-            for d in instance.drone_ids():
-                dr = list(candidate.drone_routes.get(d, [0, 0]))
-                dr = [n for n in dr if n != customer]
-                if len(dr) < 2:
-                    dr = [0, 0]
-                if dr[0] != 0:
-                    dr = [0] + dr
-                if dr[-1] != 0:
-                    dr = dr + [0]
-                candidate.drone_routes[d] = dr
-                candidate.u_drone[(d, customer)] = 0
+        for t in instance.truck_ids():
+            candidate.u_truck[(t, customer)] = 1 if t == truck else 0
+        candidate.truck_routes[truck] = base_route[:pos] + [customer] + base_route[pos:]
+        candidate.x_truck = {}
+        candidate.x_drone = {}
+        for key in list(candidate.z1.keys()):
+            if key[0] == customer:
+                candidate.z1[key] = 0
+        for key in list(candidate.z2.keys()):
+            if key[0] == customer:
+                candidate.z2[key] = 0
 
-            # Reset truck assignment for this customer.
-            for t in instance.truck_ids():
-                candidate.u_truck[(t, customer)] = 1 if t == truck else 0
+        _add_stat(stats, "repair_candidates_screened")
+        obj, comp = evaluate_solution(instance, candidate)
+        _add_stat(stats, "repair_candidates_fully_evaluated")
+        candidate.objective = obj
+        candidate.components = comp
 
-            new_route = base_route[:pos] + [customer] + base_route[pos:]
-            candidate.truck_routes[truck] = new_route
-
-            # Clear stale arc dictionaries to force route-based interpretation.
-            candidate.x_truck = {}
-            candidate.x_drone = {}
-
-            # Remove stale sync flags that may reference the moved customer node.
-            for key in list(candidate.z1.keys()):
-                if key[0] == customer:
-                    candidate.z1[key] = 0
-            for key in list(candidate.z2.keys()):
-                if key[0] == customer:
-                    candidate.z2[key] = 0
-
-            obj, comp = evaluate_solution(instance, candidate)
-            candidate.objective = obj
-            candidate.components = comp
-
-            if is_feasible(instance, candidate) and obj < best_obj:
+        if is_feasible(instance, candidate):
+            _add_stat(stats, "repair_candidates_strict_feasible")
+            if obj < best_obj:
                 best_obj = obj
                 best = candidate
 
@@ -1558,6 +1638,9 @@ def _repair_infeasible_solution(
     solution: SolutionData,
     *,
     max_steps: int,
+    max_candidates: int = 0,
+    rng: np.random.Generator | None = None,
+    stats: Dict[str, int] | None = None,
 ) -> SolutionData | None:
     """Greedy feasibility-recovery by moving drone-served customers back to trucks."""
     _sync_route_assignments(solution, instance)
@@ -1577,10 +1660,37 @@ def _repair_infeasible_solution(
         if not drone_customers:
             break
 
+        reservoir = _CandidateReservoir(max_candidates, rng)
+        for customer in drone_customers:
+            for truck in instance.truck_ids():
+                route = list(current.truck_routes.get(truck, [0, 0])) or [0, 0]
+                if route[0] != 0:
+                    route.insert(0, 0)
+                if route[-1] != 0:
+                    route.append(0)
+                for pos in range(1, len(route)):
+                    reservoir.add((customer, truck, pos))
+                    _add_stat(stats, "repair_candidates_generated")
+        selected = reservoir.descriptors
+        _add_stat(stats, "repair_candidates_retained", len(selected))
+        selected_by_customer: Dict[int, list[tuple[int, int]]] = {}
+        for customer, truck, pos in selected:
+            selected_by_customer.setdefault(customer, []).append((truck, pos))
+
         best_step: SolutionData | None = None
         best_step_obj = math.inf
         for customer in drone_customers:
-            repaired = _move_customer_back_to_truck(instance, current, customer, coords=coords)
+            candidate_positions = selected_by_customer.get(customer, [])
+            if not candidate_positions:
+                continue
+            repaired = _move_customer_back_to_truck(
+                instance,
+                current,
+                customer,
+                coords=coords,
+                candidate_positions=candidate_positions,
+                stats=stats,
+            )
             if repaired is None:
                 continue
             if repaired.objective < best_step_obj:
@@ -1620,12 +1730,15 @@ def run_nils(
     battery_slack_ratio: float | None = None,
     no_unpairing_mode: bool = False,
     strict_candidate_check_cap: int = 12,
+    max_displacement_candidates: int = 0,
+    max_repair_candidates: int = 0,
     full_feasibility_check_interval: int = 6,
     require_feasible_incumbent: bool = True,
     repair_infeasible_candidates: bool = True,
     repair_max_steps: int = 3,
     initialization_mode: str = "greedy",
     initialization_time_limit_seconds: int = 3,
+    initial_truck_routes: Dict[int, List[int]] | None = None,
     strict_improving_acceptance: bool = False,
     stagnation_perturb_from_best: bool = False,
     stagnation_perturb_attempts: int = 1,
@@ -1651,7 +1764,12 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
     start = time.monotonic()
     deadline = start + max(0.0, float(time_limit))
     rng = np.random.default_rng(seed)
+    candidate_rng = np.random.default_rng(int(seed) + 104729)
     rnd = random.Random(seed)
+    max_displacement_candidates = int(max_displacement_candidates)
+    max_repair_candidates = int(max_repair_candidates)
+    if max_displacement_candidates < 0 or max_repair_candidates < 0:
+        raise ValueError("NILS candidate caps must be non-negative; use 0 for unlimited")
     if battery_slack_ratio is None:
         battery_slack_ratio = float(instance.metadata.get("battery_slack_ratio", 0.10))
     battery_slack_ratio = float(max(0.0, battery_slack_ratio))
@@ -1677,12 +1795,55 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
     risk_rollback_attempts = 0
     risk_admission_guard = False
 
-    current = build_initial_solution(
-        instance,
-        seed,
-        initializer=initialization_mode,
-        ortools_time_limit_seconds=max(1, int(initialization_time_limit_seconds)),
-    )
+    stats = {
+        "iterations": 0,
+        "improving_moves_accepted": 0,
+        "candidate_reassignments_evaluated": 0,
+        "battery_infeasible_rejections": 0,
+        "battery_slack_rejections": 0,
+        "infeasible_candidate_rejections": 0,
+        "tabu_reverts": 0,
+        "perturbation_moves": 0,
+        "local_search_calls": 0,
+        "local_screen_rejections": 0,
+        "strict_feasibility_checks": 0,
+        "displacement_customers_scanned": 0,
+        "displacement_sortie_options_generated": 0,
+        "displacement_candidates_generated": 0,
+        "displacement_candidates_retained": 0,
+        "displacement_candidates_screened": 0,
+        "displacement_candidates_fully_evaluated": 0,
+        "displacement_candidates_strict_feasible": 0,
+        "displacement_deadline_terminated": 0,
+        "repair_candidates_generated": 0,
+        "repair_candidates_retained": 0,
+        "repair_candidates_screened": 0,
+        "repair_candidates_fully_evaluated": 0,
+        "repair_candidates_strict_feasible": 0,
+        "repair_attempts": 0,
+        "repair_successes": 0,
+        "repair_failures": 0,
+    }
+    initial_backbone_reused = initial_truck_routes is not None
+
+    if initial_truck_routes is None:
+        current = build_initial_solution(
+            instance,
+            seed,
+            initializer=initialization_mode,
+            ortools_time_limit_seconds=max(1, int(initialization_time_limit_seconds)),
+        )
+    else:
+        normalized_routes = {
+            int(truck): [int(node) for node in route]
+            for truck, route in initial_truck_routes.items()
+        }
+        if set(normalized_routes) != set(instance.truck_ids()):
+            raise ValueError("initial_truck_routes must contain one route for every truck")
+        assigned_customers = [node for route in normalized_routes.values() for node in route if node != 0]
+        if sorted(assigned_customers) != sorted(instance.customer_ids):
+            raise ValueError("initial_truck_routes must assign every customer exactly once")
+        current = _fill_solution_from_routes(instance, normalized_routes)
     current.objective, current.components = evaluate_solution(instance, current)
     _sync_route_assignments(current, instance)
     if require_feasible_incumbent and not is_feasible(instance, current):
@@ -1690,6 +1851,9 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
             instance,
             current,
             max_steps=max(1, int(repair_max_steps)),
+            max_candidates=max_repair_candidates,
+            rng=candidate_rng,
+            stats=stats,
         )
         if repaired is not None:
             current = repaired
@@ -1718,6 +1882,9 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                 instance,
                 trial,
                 max_steps=max(1, int(repair_max_steps)),
+                max_candidates=max_repair_candidates,
+                rng=candidate_rng,
+                stats=stats,
             )
             if repaired_trial is not None:
                 repaired_trial.objective, repaired_trial.components = evaluate_solution(instance, repaired_trial)
@@ -1731,6 +1898,22 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
             current.status = "CONSTRUCTION-FAILED"
             current.components = dict(current.components)
             current.components["structural_screen_passed"] = 1.0
+            current.components["max_displacement_candidates"] = float(max_displacement_candidates)
+            current.components["max_repair_candidates"] = float(max_repair_candidates)
+            current.components["initial_backbone_reused"] = 1.0 if initial_backbone_reused else 0.0
+            for metric in (
+                "displacement_candidates_generated",
+                "displacement_candidates_retained",
+                "displacement_candidates_screened",
+                "displacement_candidates_fully_evaluated",
+                "displacement_candidates_strict_feasible",
+                "repair_candidates_generated",
+                "repair_candidates_retained",
+                "repair_candidates_screened",
+                "repair_candidates_fully_evaluated",
+                "repair_candidates_strict_feasible",
+            ):
+                current.components[metric] = float(stats[metric])
             current.tags = tuple(current.tags) + ("construction_failure_reason:bounded_restarts_and_repairs_exhausted",)
             return current
 
@@ -1743,25 +1926,6 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
         pairing_map = {}
 
     eligible_customers = _eligible_customer_ids(instance)
-    stats = {
-        "iterations": 0,
-        "improving_moves_accepted": 0,
-        "candidate_reassignments_evaluated": 0,
-        "battery_infeasible_rejections": 0,
-        "battery_slack_rejections": 0,
-        "infeasible_candidate_rejections": 0,
-        "tabu_reverts": 0,
-        "perturbation_moves": 0,
-        "local_search_calls": 0,
-        "local_screen_rejections": 0,
-        "strict_feasibility_checks": 0,
-        "displacement_customers_scanned": 0,
-        "displacement_sortie_options_generated": 0,
-        "displacement_deadline_terminated": 0,
-        "repair_attempts": 0,
-        "repair_successes": 0,
-        "repair_failures": 0,
-    }
     stats["risk_rollback_attempts"] = 0
     stats["risk_rollback_candidates_evaluated"] = 0
     stats["risk_rollback_accepted"] = 0
@@ -1778,6 +1942,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
             battery_aware_screening=battery_aware_screening,
             battery_slack_ratio=battery_slack_ratio,
             strict_check_cap=strict_candidate_check_cap,
+            max_candidates=max_displacement_candidates,
+            rng=candidate_rng,
             tabu_moves=tabu_moves,
             stats=stats,
         )
@@ -1941,6 +2107,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                 battery_aware_screening=battery_aware_screening,
                 battery_slack_ratio=battery_slack_ratio,
                 strict_check_cap=strict_candidate_check_cap,
+                max_candidates=max_displacement_candidates,
+                rng=candidate_rng,
                 tabu_moves=tabu_moves,
                 stats=stats,
                 deadline=deadline,
@@ -1954,6 +2122,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                 battery_aware_screening=battery_aware_screening,
                 battery_slack_ratio=battery_slack_ratio,
                 strict_check_cap=strict_candidate_check_cap,
+                max_candidates=max_displacement_candidates,
+                rng=candidate_rng,
                 tabu_moves=tabu_moves,
                 stats=stats,
                 deadline=deadline,
@@ -1967,6 +2137,8 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                 battery_aware_screening=battery_aware_screening,
                 battery_slack_ratio=battery_slack_ratio,
                 strict_check_cap=strict_candidate_check_cap,
+                max_candidates=max_displacement_candidates,
+                rng=candidate_rng,
                 tabu_moves=tabu_moves,
                 stats=stats,
                 deadline=deadline,
@@ -2049,6 +2221,9 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                         instance,
                         candidate,
                         max_steps=max(1, int(repair_max_steps)),
+                        max_candidates=max_repair_candidates,
+                        rng=candidate_rng,
+                        stats=stats,
                     )
                 if repaired is not None:
                     stats["repair_successes"] += 1
@@ -2081,6 +2256,9 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                         instance,
                         candidate,
                         max_steps=max(1, int(repair_max_steps)),
+                        max_candidates=max_repair_candidates,
+                        rng=candidate_rng,
+                        stats=stats,
                     )
                 if repaired is not None:
                     stats["repair_successes"] += 1
@@ -2142,6 +2320,22 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
     best.components["displacement_sortie_options_generated"] = float(
         stats["displacement_sortie_options_generated"]
     )
+    for metric in (
+        "displacement_candidates_generated",
+        "displacement_candidates_retained",
+        "displacement_candidates_screened",
+        "displacement_candidates_fully_evaluated",
+        "displacement_candidates_strict_feasible",
+        "repair_candidates_generated",
+        "repair_candidates_retained",
+        "repair_candidates_screened",
+        "repair_candidates_fully_evaluated",
+        "repair_candidates_strict_feasible",
+    ):
+        best.components[metric] = float(stats[metric])
+    best.components["max_displacement_candidates"] = float(max_displacement_candidates)
+    best.components["max_repair_candidates"] = float(max_repair_candidates)
+    best.components["initial_backbone_reused"] = 1.0 if initial_backbone_reused else 0.0
     best.components["displacement_deadline_terminated"] = float(stats["displacement_deadline_terminated"])
     best.components["repair_attempts"] = float(stats["repair_attempts"])
     best.components["repair_successes"] = float(stats["repair_successes"])

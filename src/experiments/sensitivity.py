@@ -148,6 +148,8 @@ def _run_factor_level(
                 max_iter=max(1, int(base_config.heuristics.max_outer_iter)),
                 max_no_improve=max(1, int(base_config.heuristics.max_no_improve)),
                 time_limit=max(1, int(base_config.heuristics.time_limit_seconds)),
+                max_displacement_candidates=base_config.heuristics.max_displacement_candidates,
+                max_repair_candidates=base_config.heuristics.max_repair_candidates,
             )
             status = solved.status
             objective = float(solved.objective)

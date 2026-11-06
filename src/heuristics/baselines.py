@@ -31,6 +31,13 @@ def _clone_solution(solution: SolutionData) -> SolutionData:
     return SolutionData(**{k: v for k, v in solution.__dict__.items()})
 
 
+def _nils_candidate_caps(config: SearchConfig) -> dict[str, int]:
+    return {
+        "max_displacement_candidates": config.heuristics.max_displacement_candidates,
+        "max_repair_candidates": config.heuristics.max_repair_candidates,
+    }
+
+
 def truck_only_baseline(instance: InstanceData, config: SearchConfig) -> BaselineResult:
     sol = build_initial_solution(instance, config.seed)
     obj, comp = evaluate_solution(instance, sol)
@@ -51,6 +58,7 @@ def paired_baseline(instance: InstanceData, config: SearchConfig) -> BaselineRes
         drone_to_truck=drone_to_truck,
         use_paired_initialization=True,
         max_initial_pairings=2,
+        **_nils_candidate_caps(config),
     )
     obj.status = "baseline_paired"
     return BaselineResult(name="paired_baseline", solution=obj)
@@ -62,7 +70,12 @@ def no_priority_baseline(instance: InstanceData, config: SearchConfig) -> Baseli
     try:
         for key in instance.priority_penalties:
             instance.priority_penalties[key] = 1.0
-        sol = run_nils(instance, config.seed + 1, max_iter=max(1, config.heuristics.max_outer_iter // 2))
+        sol = run_nils(
+            instance,
+            config.seed + 1,
+            max_iter=max(1, config.heuristics.max_outer_iter // 2),
+            **_nils_candidate_caps(config),
+        )
         sol.status = "baseline_no_priority"
         return BaselineResult(name="no_priority", solution=sol)
     finally:
@@ -77,6 +90,7 @@ def no_unpairing_baseline(instance: InstanceData, config: SearchConfig) -> Basel
         max_no_improve=max(1, config.heuristics.max_no_improve),
         time_limit=max(10, min(120, config.heuristics.time_limit_seconds)),
         no_unpairing_mode=True,
+        **_nils_candidate_caps(config),
     )
     obj.status = "baseline_no_unpairing"
     return BaselineResult(name="no_unpairing", solution=obj)
@@ -113,7 +127,12 @@ def simple_drone_assignment_baseline(instance: InstanceData, config: SearchConfi
     if not is_feasible(instance, current):
         current = build_initial_solution(instance, config.seed + 31)
         if not is_feasible(instance, current):
-            repaired = _repair_infeasible_solution(instance, current, max_steps=max(1, int(instance.num_customers)))
+            repaired = _repair_infeasible_solution(
+                instance,
+                current,
+                max_steps=max(1, int(instance.num_customers)),
+                max_candidates=config.heuristics.max_repair_candidates,
+            )
             if repaired is not None:
                 current = repaired
     eligible = _eligible_customer_ids(instance)
@@ -162,7 +181,12 @@ def simple_drone_assignment_baseline(instance: InstanceData, config: SearchConfi
 
     current.objective, current.components = evaluate_solution(instance, current)
     if not is_feasible(instance, current):
-        repaired = _repair_infeasible_solution(instance, current, max_steps=max(1, int(instance.num_customers)))
+        repaired = _repair_infeasible_solution(
+            instance,
+            current,
+            max_steps=max(1, int(instance.num_customers)),
+            max_candidates=config.heuristics.max_repair_candidates,
+        )
         if repaired is not None:
             current = repaired
             current.objective, current.components = evaluate_solution(instance, current)
@@ -211,6 +235,7 @@ def nils_no_local_search_baseline(instance: InstanceData, config: SearchConfig) 
         max_no_improve=max(1, config.heuristics.max_no_improve),
         time_limit=max(10, min(180, config.heuristics.time_limit_seconds)),
         enable_local_search=False,
+        **_nils_candidate_caps(config),
     )
     sol.status = "ablation_no_local_search"
     return BaselineResult(name="nils_no_local_search", solution=sol)
@@ -224,6 +249,7 @@ def nils_no_perturbation_baseline(instance: InstanceData, config: SearchConfig) 
         max_no_improve=max(1, config.heuristics.max_no_improve),
         time_limit=max(10, min(180, config.heuristics.time_limit_seconds)),
         enable_perturbation=False,
+        **_nils_candidate_caps(config),
     )
     sol.status = "ablation_no_perturbation"
     return BaselineResult(name="nils_no_perturbation", solution=sol)
@@ -237,6 +263,7 @@ def nils_no_battery_screening_baseline(instance: InstanceData, config: SearchCon
         max_no_improve=max(1, config.heuristics.max_no_improve),
         time_limit=max(10, min(180, config.heuristics.time_limit_seconds)),
         battery_aware_screening=False,
+        **_nils_candidate_caps(config),
     )
     sol.status = "ablation_no_battery_screening"
     return BaselineResult(name="nils_no_battery_screening", solution=sol)
@@ -261,6 +288,7 @@ def nils_r_baseline(instance: InstanceData, config: SearchConfig) -> BaselineRes
         epsilon_z=float(exp_cfg.get("nils_r_epsilon_z", 1e-6)),
         epsilon_h=float(exp_cfg.get("nils_r_epsilon_h", 1e-6)),
         epsilon_tail=float(exp_cfg.get("nils_r_epsilon_tail", 1e-6)),
+        **_nils_candidate_caps(config),
     )
     sol.status = "baseline_nils_r"
     return BaselineResult(name="nils_r", solution=sol)
@@ -288,6 +316,7 @@ def nils_soft_drone_target_baseline(instance: InstanceData, config: SearchConfig
             max_iter=max(1, config.heuristics.max_outer_iter),
             max_no_improve=max(1, config.heuristics.max_no_improve),
             time_limit=max(10, min(180, config.heuristics.time_limit_seconds)),
+            **_nils_candidate_caps(config),
         )
         evaluated += 1
         drone_share = float(len(sol.served_by_drone()) / max(1, instance.num_customers))
@@ -314,6 +343,7 @@ def nils_soft_drone_target_baseline(instance: InstanceData, config: SearchConfig
             max_iter=max(1, config.heuristics.max_outer_iter),
             max_no_improve=max(1, config.heuristics.max_no_improve),
             time_limit=max(10, min(180, config.heuristics.time_limit_seconds)),
+            **_nils_candidate_caps(config),
         )
         best_augmented = float(best_solution.objective)
         best_feasible = bool(is_feasible(instance, best_solution))

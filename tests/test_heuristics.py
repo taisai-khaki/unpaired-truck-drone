@@ -4,7 +4,7 @@ from src.heuristics import build_initial_solution
 from src.heuristics import run_nils
 from src.heuristics import nils as nils_module
 from src.instance_generator import InstanceGenerator
-from src.parameters import HeuristicConfig, SearchConfig, GenerationSettings
+from src.parameters import HeuristicConfig, SearchConfig, GenerationSettings, build_search_config
 
 
 def _config() -> SearchConfig:
@@ -88,8 +88,8 @@ def test_m5_displacement_returns_feasible_candidate_found_before_deadline(monkey
     )
 
     assert selected is candidate
-    assert stats["displacement_customers_scanned"] == 1
-    assert stats["displacement_sortie_options_generated"] == 2
+    assert stats["displacement_customers_scanned"] == instance.num_customers
+    assert stats["displacement_sortie_options_generated"] == 4
     assert stats["candidate_reassignments_evaluated"] == 1
     assert stats["strict_feasibility_checks"] == 1
     assert stats["displacement_deadline_terminated"] == 1
@@ -205,4 +205,168 @@ def test_nils_accepts_salvaged_candidate_after_search_deadline(monkeypatch) -> N
     )
 
     assert result.objective < initial_objective
+
+
+def test_candidate_cap_sampling_is_seeded_and_not_prefix_biased() -> None:
+    descriptors = [(index,) for index in range(100)]
+    first_reservoir = nils_module._CandidateReservoir(10, nils_module.np.random.default_rng(17))
+    second_reservoir = nils_module._CandidateReservoir(10, nils_module.np.random.default_rng(17))
+    for descriptor in descriptors:
+        first_reservoir.add(descriptor)
+        second_reservoir.add(descriptor)
+    first = first_reservoir.descriptors
+    second = second_reservoir.descriptors
+
+    assert len(first) == 10
+    assert first_reservoir.generated == 100
+    assert len(set(first)) == 10
+    assert first == second
+    assert first != descriptors[:10]
+
+
+def test_candidate_caps_load_from_nested_nils_config() -> None:
+    config = build_search_config(
+        {
+            "base_class_windows": {
+                "high": [0, 60],
+                "medium": [0, 120],
+                "low": [0, 240],
+            },
+            "heuristics": {
+                "nils": {
+                    "max_displacement_candidates": 100,
+                    "max_repair_candidates": 37,
+                }
+            },
+        }
+    )
+
+    assert config.heuristics.max_displacement_candidates == 100
+    assert config.heuristics.max_repair_candidates == 37
+
+
+def test_m3_m4_m5_displacement_caps_limit_screened_candidates(monkeypatch) -> None:
+    instance = InstanceGenerator.from_search_config(_config()).generate_single(27, "candidate_cap_case")
+    solution = build_initial_solution(instance, seed=27)
+    truck = max(instance.truck_ids(), key=lambda truck_id: len(solution.truck_routes.get(truck_id, [])))
+    route = solution.truck_routes[truck]
+    assert len(route) > 3
+    customer = route[-2]
+    drone = instance.drone_ids()[0]
+    candidate = nils_module._empty_solution_clone(solution)
+
+    monkeypatch.setattr(nils_module, "move_to_drone", lambda *_args, **_kwargs: candidate)
+    monkeypatch.setattr(nils_module, "_quick_local_feasible", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(nils_module, "_paired_trip_feasible", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(nils_module, "_m5_sortie_options", lambda *_args: [(0, 0, truck, truck), (0, customer, truck, truck), (0, 2, truck, truck)])
+    monkeypatch.setattr(nils_module, "evaluate_solution", lambda *_args: (1.0, {}))
+    monkeypatch.setattr(nils_module, "_sync_route_assignments", lambda *_args: None)
+    monkeypatch.setattr(nils_module, "is_feasible", lambda *_args: True)
+
+    extractors = (
+        lambda stats: nils_module._extract_best_displacement(
+            instance,
+            solution,
+            coords=instance.coordinate_map(),
+            eligible_customers={customer},
+            battery_aware_screening=False,
+            battery_slack_ratio=0.0,
+            strict_check_cap=12,
+            max_candidates=1,
+            rng=nils_module.np.random.default_rng(27),
+            stats=stats,
+        ),
+        lambda stats: nils_module._extract_best_paired_displacement(
+            instance,
+            solution,
+            {drone: truck},
+            instance.coordinate_map(),
+            eligible_customers={customer},
+            battery_aware_screening=False,
+            battery_slack_ratio=0.0,
+            strict_check_cap=12,
+            max_candidates=1,
+            rng=nils_module.np.random.default_rng(27),
+            stats=stats,
+        ),
+        lambda stats: nils_module._extract_best_no_unpairing_displacement(
+            instance,
+            solution,
+            instance.coordinate_map(),
+            eligible_customers={customer},
+            battery_aware_screening=False,
+            battery_slack_ratio=0.0,
+            strict_check_cap=12,
+            max_candidates=1,
+            rng=nils_module.np.random.default_rng(27),
+            stats=stats,
+        ),
+    )
+
+    for extract in extractors:
+        stats = {"strict_feasibility_checks": 0, "infeasible_candidate_rejections": 0}
+        assert extract(stats) is candidate
+        assert stats["displacement_candidates_generated"] > 1
+        assert stats["displacement_candidates_retained"] == 1
+        assert stats["displacement_candidates_screened"] == 1
+        assert stats["displacement_candidates_fully_evaluated"] == 1
+
+
+def test_nils_reuses_persisted_initial_truck_routes() -> None:
+    instance = InstanceGenerator.from_search_config(_config()).generate_single(28, "reused_backbone_case")
+    initial = build_initial_solution(instance, seed=28)
+
+    result = run_nils(
+        instance,
+        seed=28,
+        max_iter=0,
+        time_limit=0,
+        require_feasible_incumbent=False,
+        initial_truck_routes=initial.truck_routes,
+    )
+
+    assert result.truck_routes == initial.truck_routes
+    assert result.components["initial_backbone_reused"] == 1.0
+
+
+def test_repair_candidate_cap_bounds_each_repair_step(monkeypatch) -> None:
+    instance = InstanceGenerator.from_search_config(_config()).generate_single(29, "repair_cap_case")
+    initial = build_initial_solution(instance, seed=29)
+    customer = instance.customer_ids[0]
+    drone_solution = nils_module.move_to_drone(
+        instance,
+        initial,
+        customer,
+        instance.drone_ids()[0],
+        enforce_battery=False,
+    )
+    assert drone_solution is not None
+
+    feasibility_calls = {"count": 0}
+
+    def feasible_after_first_check(*_args):
+        feasibility_calls["count"] += 1
+        return feasibility_calls["count"] > 1
+
+    def return_selected_reinsertion(_instance, solution, _customer, **kwargs):
+        assert len(kwargs["candidate_positions"]) <= 2
+        return nils_module._empty_solution_clone(solution)
+
+    monkeypatch.setattr(nils_module, "is_feasible", feasible_after_first_check)
+    monkeypatch.setattr(nils_module, "_sync_route_assignments", lambda *_args: None)
+    monkeypatch.setattr(nils_module, "_move_customer_back_to_truck", return_selected_reinsertion)
+    stats = {}
+
+    repaired = nils_module._repair_infeasible_solution(
+        instance,
+        drone_solution,
+        max_steps=1,
+        max_candidates=2,
+        rng=nils_module.np.random.default_rng(29),
+        stats=stats,
+    )
+
+    assert repaired is not None
+    assert stats["repair_candidates_generated"] > 2
+    assert stats["repair_candidates_retained"] == 2
 

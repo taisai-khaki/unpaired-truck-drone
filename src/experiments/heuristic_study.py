@@ -568,6 +568,8 @@ def _run_method(instance: InstanceData, config: SearchConfig, method_name: str) 
             max_iter=config.heuristics.max_outer_iter,
             max_no_improve=config.heuristics.max_no_improve,
             time_limit=config.heuristics.time_limit_seconds,
+            max_displacement_candidates=config.heuristics.max_displacement_candidates,
+            max_repair_candidates=config.heuristics.max_repair_candidates,
         )
     if method_name == "nils_soft_drone_target":
         return nils_soft_drone_target_baseline(instance, config).solution
@@ -760,6 +762,18 @@ def _collect_row(
         "improving_moves_accepted": float(solution.components.get("improving_moves_accepted", 0.0)),
         "candidate_reassignments_evaluated": float(solution.components.get("candidate_reassignments_evaluated", 0.0)),
         "full_candidates_evaluated": float(solution.components.get("candidate_reassignments_evaluated", 0.0)),
+        "displacement_candidates_generated": float(solution.components.get("displacement_candidates_generated", 0.0)),
+        "displacement_candidates_retained": float(solution.components.get("displacement_candidates_retained", 0.0)),
+        "displacement_candidates_screened": float(solution.components.get("displacement_candidates_screened", 0.0)),
+        "displacement_candidates_fully_evaluated": float(solution.components.get("displacement_candidates_fully_evaluated", 0.0)),
+        "displacement_candidates_strict_feasible": float(solution.components.get("displacement_candidates_strict_feasible", 0.0)),
+        "repair_candidates_generated": float(solution.components.get("repair_candidates_generated", 0.0)),
+        "repair_candidates_retained": float(solution.components.get("repair_candidates_retained", 0.0)),
+        "repair_candidates_screened": float(solution.components.get("repair_candidates_screened", 0.0)),
+        "repair_candidates_fully_evaluated": float(solution.components.get("repair_candidates_fully_evaluated", 0.0)),
+        "repair_candidates_strict_feasible": float(solution.components.get("repair_candidates_strict_feasible", 0.0)),
+        "max_displacement_candidates": float(solution.components.get("max_displacement_candidates", 0.0)),
+        "max_repair_candidates": float(solution.components.get("max_repair_candidates", 0.0)),
         "displacement_customers_scanned": float(solution.components.get("displacement_customers_scanned", 0.0)),
         "displacement_sortie_options_generated": float(
             solution.components.get("displacement_sortie_options_generated", 0.0)
@@ -1950,6 +1964,8 @@ def run_heuristic_study(config: SearchConfig, output_dir: str | None = None) -> 
                             instance,
                             solution,
                             max_steps=max(output_repair_steps, int(instance.num_customers)),
+                            max_candidates=scenario_cfg.heuristics.max_repair_candidates,
+                            rng=np.random.default_rng(scenario_cfg.heuristics.random_seed + 104729),
                         )
                         if repaired is not None and is_feasible(instance, repaired):
                             solution = repaired

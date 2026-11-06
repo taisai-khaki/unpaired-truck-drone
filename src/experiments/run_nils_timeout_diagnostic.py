@@ -24,7 +24,7 @@ from .heuristic_study import _scenario_config
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE = ROOT / "outputs" / "full_revised_usync_20261101_paper_ready"
-DEFAULT_OUTPUT = ROOT / "outputs" / "nils_timeout_diagnostic_corrected_20261105"
+DEFAULT_OUTPUT = ROOT / "outputs" / "nils_candidate_cap_reservoir_diagnostic_20261105"
 RUN_FIELDS = [
     "instance_id",
     "scenario_id",
@@ -40,18 +40,34 @@ RUN_FIELDS = [
     "baseline_launches",
     "rerun_launches",
     "baseline_cpu_seconds",
+    "initial_backbone_generation_cpu_seconds",
     "rerun_cpu_seconds",
     "nils_runtime_seconds",
     "baseline_feasible",
     "rerun_feasible",
     "nils_status_before_wrapper",
     "final_solution_status",
+    "initial_backbone_status",
+    "initial_backbone_feasible",
+    "initial_backbone_reused",
     "iterations",
+    "displacement_candidates_generated",
+    "displacement_candidates_retained",
+    "displacement_candidates_screened",
+    "displacement_candidates_fully_evaluated",
+    "displacement_candidates_strict_feasible",
+    "max_displacement_candidates",
     "customers_scanned",
     "sortie_options_generated",
     "local_screen_rejections",
     "full_candidates_evaluated",
     "strict_feasibility_checks",
+    "repair_candidates_generated",
+    "repair_candidates_retained",
+    "repair_candidates_screened",
+    "repair_candidates_fully_evaluated",
+    "repair_candidates_strict_feasible",
+    "max_repair_candidates",
     "terminated_by_deadline",
     "status",
     "error",
@@ -141,6 +157,8 @@ def _write_summary(path: Path, records: list[dict[str, str]], sizes: list[int]) 
     fields = [
         "size",
         "runs",
+        "mean_iterations",
+        "median_iterations",
         "baseline_feasible_runs",
         "rerun_feasible_runs",
         "matched_feasible_pairs",
@@ -157,6 +175,16 @@ def _write_summary(path: Path, records: list[dict[str, str]], sizes: list[int]) 
         "deadline_terminated_runs",
         "mean_sortie_options_generated",
         "mean_full_candidates_evaluated",
+        "mean_displacement_candidates_generated",
+        "mean_displacement_candidates_retained",
+        "mean_displacement_candidates_screened",
+        "mean_displacement_candidates_fully_evaluated",
+        "mean_displacement_candidates_strict_feasible",
+        "mean_repair_candidates_generated",
+        "mean_repair_candidates_retained",
+        "mean_repair_candidates_screened",
+        "mean_repair_candidates_fully_evaluated",
+        "mean_repair_candidates_strict_feasible",
     ]
     rows = []
     for size in sizes:
@@ -175,6 +203,8 @@ def _write_summary(path: Path, records: list[dict[str, str]], sizes: list[int]) 
             {
                 "size": size,
                 "runs": len(group),
+                "mean_iterations": statistics.mean(float(row["iterations"]) for row in group),
+                "median_iterations": statistics.median(float(row["iterations"]) for row in group),
                 "baseline_feasible_runs": sum(row["baseline_feasible"].lower() == "true" for row in group),
                 "rerun_feasible_runs": sum(row["rerun_feasible"].lower() == "true" for row in group),
                 "matched_feasible_pairs": len(paired),
@@ -191,6 +221,21 @@ def _write_summary(path: Path, records: list[dict[str, str]], sizes: list[int]) 
                 "deadline_terminated_runs": sum(row["terminated_by_deadline"].lower() == "true" for row in group),
                 "mean_sortie_options_generated": statistics.mean(float(row["sortie_options_generated"]) for row in group),
                 "mean_full_candidates_evaluated": statistics.mean(float(row["full_candidates_evaluated"]) for row in group),
+                **{
+                    f"mean_{field}": statistics.mean(float(row[field]) for row in group)
+                    for field in (
+                        "displacement_candidates_generated",
+                        "displacement_candidates_retained",
+                        "displacement_candidates_screened",
+                        "displacement_candidates_fully_evaluated",
+                        "displacement_candidates_strict_feasible",
+                        "repair_candidates_generated",
+                        "repair_candidates_retained",
+                        "repair_candidates_screened",
+                        "repair_candidates_fully_evaluated",
+                        "repair_candidates_strict_feasible",
+                    )
+                },
             }
         )
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -230,12 +275,17 @@ def main() -> None:
     runs_path = output_dir / "nils_timeout_diagnostic_runs.csv"
     metadata_path = output_dir / "run_provenance.json"
     summary_path = output_dir / "nils_timeout_diagnostic_by_size.csv"
+    backbone_path = output_dir / "initial_truck_backbones.json"
 
     if runs_path.exists():
         with runs_path.open(newline="", encoding="utf-8-sig") as handle:
             existing = list(csv.DictReader(handle))
     else:
         existing = []
+    if backbone_path.exists():
+        backbone_cache = json.loads(backbone_path.read_text(encoding="utf-8"))
+    else:
+        backbone_cache = {"schema_version": 1, "instances": {}}
     completed_ids = {row["instance_id"] for row in existing if row.get("status") == "completed"}
 
     def git_value(*parts: str) -> str:
@@ -255,6 +305,14 @@ def main() -> None:
         "diagnostic_execution_commit": git_value("git", "rev-parse", "HEAD"),
         "diagnostic_worktree_status": git_value("git", "status", "--short"),
         "nils_source_sha256": hashlib.sha256(nils_path.read_bytes()).hexdigest(),
+        "implementation_sha256": {
+            name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+            for name in (
+                "src/parameters.py",
+                "src/heuristics/nils.py",
+                "src/experiments/run_nils_timeout_diagnostic.py",
+            )
+        },
         "python_executable": sys.executable,
         "python_version": platform.python_version(),
         "platform": platform.platform(),
@@ -269,6 +327,14 @@ def main() -> None:
         "nils_initial_repair_max_steps": 3,
         "nils_random_seed": int(base_config.heuristics.random_seed),
         "strict_candidate_check_cap": 12,
+        "max_displacement_candidates": base_config.heuristics.max_displacement_candidates,
+        "max_repair_candidates": base_config.heuristics.max_repair_candidates,
+        "candidate_cap_semantics": {
+            "max_displacement_candidates": "seeded uniform reservoir sample of generated truck-to-drone move descriptors per displacement extraction call; 0 means unlimited",
+            "max_repair_candidates": "seeded uniform reservoir sample of drone-to-truck insertion descriptors per repair step; 0 means unlimited",
+        },
+        "initial_truck_backbone_cache": _portable_path(backbone_path),
+        "initial_truck_backbones_persisted_and_reused": True,
         "instance_seed_source": "random_seed column in baseline heuristic_study_runs.csv",
         "nils_seed_source": "heuristics.nils.random_seed in config/main_config.yaml",
         "force_feasible_outputs": force_feasible_outputs,
@@ -299,10 +365,47 @@ def main() -> None:
                 "baseline_drone_share": float(baseline["drone_service_share"]),
                 "baseline_launches": int(float(baseline["number_of_drone_launches"])),
                 "baseline_cpu_seconds": float(baseline["cpu_time_seconds"]),
+                "initial_backbone_generation_cpu_seconds": 0.0,
                 "baseline_feasible": str(baseline["final_solution_feasibility_flag"].lower() == "true").lower(),
             }
             try:
                 instance = load_instance_json(source_raw_dir / f"{instance_id}.json")
+                backbone_generation_started = time.monotonic()
+                cache_entry = backbone_cache["instances"].get(instance_id)
+                if cache_entry is None:
+                    initial = run_nils(
+                        instance,
+                        seed=common["nils_seed"],
+                        max_iter=0,
+                        max_no_improve=max_no_improve,
+                        time_limit=0,
+                        max_displacement_candidates=base_config.heuristics.max_displacement_candidates,
+                        max_repair_candidates=base_config.heuristics.max_repair_candidates,
+                    )
+                    cache_entry = {
+                        "truck_routes": {
+                            str(truck): [int(node) for node in route]
+                            for truck, route in initial.truck_routes.items()
+                        },
+                        "initialization_status": str(initial.status),
+                        "initialization_feasible": bool(is_feasible(instance, initial)),
+                        "initialization_objective": float(initial.objective),
+                        "instance_seed": common["instance_seed"],
+                        "nils_seed": common["nils_seed"],
+                        "source_instance_sha256": hashlib.sha256(
+                            (source_raw_dir / f"{instance_id}.json").read_bytes()
+                        ).hexdigest(),
+                    }
+                    cache_entry["truck_routes_sha256"] = hashlib.sha256(
+                        json.dumps(cache_entry["truck_routes"], sort_keys=True).encode("utf-8")
+                    ).hexdigest()
+                    backbone_cache["instances"][instance_id] = cache_entry
+                    _atomic_json(backbone_path, backbone_cache)
+                common["initial_backbone_generation_cpu_seconds"] = time.monotonic() - backbone_generation_started
+                initial_truck_routes = {
+                    int(truck): [int(node) for node in route]
+                    for truck, route in cache_entry["truck_routes"].items()
+                }
                 scenario = {
                     "n": int(baseline["n"]),
                     "eligible_share": float(baseline["eligible_share_target"]),
@@ -315,12 +418,16 @@ def main() -> None:
                     "battery_slack_ratio": float(baseline["battery_slack_ratio"]),
                 }
                 scenario_config = _scenario_config(base_config, scenario)
+                rerun_started = time.monotonic()
                 solution = run_nils(
                     instance,
                     seed=common["nils_seed"],
                     max_iter=max_iter,
                     max_no_improve=max_no_improve,
                     time_limit=time_limit,
+                    max_displacement_candidates=base_config.heuristics.max_displacement_candidates,
+                    max_repair_candidates=base_config.heuristics.max_repair_candidates,
+                    initial_truck_routes=initial_truck_routes,
                 )
                 nils_status_before_wrapper = str(solution.status)
                 if force_feasible_outputs and not is_feasible(instance, solution):
@@ -328,6 +435,7 @@ def main() -> None:
                         instance,
                         solution,
                         max_steps=max(output_repair_steps, int(instance.num_customers)),
+                        max_candidates=base_config.heuristics.max_repair_candidates,
                     )
                     if repaired is not None and is_feasible(instance, repaired):
                         solution = repaired
@@ -342,7 +450,7 @@ def main() -> None:
                 if drone_served == 0:
                     drone_served = sum(1 for route in solution.drone_routes.values() for node in route if node != 0)
                 components = solution.components or {}
-                elapsed = time.monotonic() - started
+                elapsed = time.monotonic() - rerun_started
                 objective = float(solution.objective)
                 row = {
                     **common,
@@ -355,12 +463,27 @@ def main() -> None:
                     "rerun_feasible": str(bool(is_feasible(instance, solution))).lower(),
                     "nils_status_before_wrapper": nils_status_before_wrapper,
                     "final_solution_status": str(solution.status),
+                    "initial_backbone_status": cache_entry["initialization_status"],
+                    "initial_backbone_feasible": str(cache_entry["initialization_feasible"]).lower(),
+                    "initial_backbone_reused": str(bool(components.get("initial_backbone_reused", 0))).lower(),
                     "iterations": components.get("iterations", 0),
+                    "displacement_candidates_generated": components.get("displacement_candidates_generated", 0),
+                    "displacement_candidates_retained": components.get("displacement_candidates_retained", 0),
+                    "displacement_candidates_screened": components.get("displacement_candidates_screened", 0),
+                    "displacement_candidates_fully_evaluated": components.get("displacement_candidates_fully_evaluated", 0),
+                    "displacement_candidates_strict_feasible": components.get("displacement_candidates_strict_feasible", 0),
+                    "max_displacement_candidates": components.get("max_displacement_candidates", base_config.heuristics.max_displacement_candidates),
                     "customers_scanned": components.get("displacement_customers_scanned", 0),
                     "sortie_options_generated": components.get("displacement_sortie_options_generated", 0),
                     "local_screen_rejections": components.get("local_screen_rejections", 0),
                     "full_candidates_evaluated": components.get("candidate_reassignments_evaluated", 0),
                     "strict_feasibility_checks": components.get("strict_feasibility_checks", 0),
+                    "repair_candidates_generated": components.get("repair_candidates_generated", 0),
+                    "repair_candidates_retained": components.get("repair_candidates_retained", 0),
+                    "repair_candidates_screened": components.get("repair_candidates_screened", 0),
+                    "repair_candidates_fully_evaluated": components.get("repair_candidates_fully_evaluated", 0),
+                    "repair_candidates_strict_feasible": components.get("repair_candidates_strict_feasible", 0),
+                    "max_repair_candidates": components.get("max_repair_candidates", base_config.heuristics.max_repair_candidates),
                     "terminated_by_deadline": str(
                         bool(components.get("displacement_deadline_terminated", 0))
                     ).lower(),
@@ -379,12 +502,27 @@ def main() -> None:
                     "rerun_feasible": "",
                     "nils_status_before_wrapper": "",
                     "final_solution_status": "",
+                    "initial_backbone_status": "",
+                    "initial_backbone_feasible": "",
+                    "initial_backbone_reused": "",
                     "iterations": "",
+                    "displacement_candidates_generated": "",
+                    "displacement_candidates_retained": "",
+                    "displacement_candidates_screened": "",
+                    "displacement_candidates_fully_evaluated": "",
+                    "displacement_candidates_strict_feasible": "",
+                    "max_displacement_candidates": base_config.heuristics.max_displacement_candidates,
                     "customers_scanned": "",
                     "sortie_options_generated": "",
                     "local_screen_rejections": "",
                     "full_candidates_evaluated": "",
                     "strict_feasibility_checks": "",
+                    "repair_candidates_generated": "",
+                    "repair_candidates_retained": "",
+                    "repair_candidates_screened": "",
+                    "repair_candidates_fully_evaluated": "",
+                    "repair_candidates_strict_feasible": "",
+                    "max_repair_candidates": base_config.heuristics.max_repair_candidates,
                     "terminated_by_deadline": "",
                     "status": "error",
                     "error": f"{type(error).__name__}: {error}",
