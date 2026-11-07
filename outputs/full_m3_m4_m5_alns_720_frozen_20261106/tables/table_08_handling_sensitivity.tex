@@ -1,0 +1,17 @@
+% tab:handling
+% Sensitivity to handling/synchronization burden by method (feasibility-aware)
+\begin{tabular}{llrrrrrrrrr}
+\toprule
+launch_retrieval_time_class & method_name & n_runs & waiting_cost & avg_truck_waiting_time & avg_drone_waiting_time & avg_synchronization_delay & avg_improvement & avg_launches & feasibility_rate & avg_total_waiting_time \\
+\midrule
+long & nils & 200 & 0.0000 & 12.5964 & 371.6534 & 98.5856 & NaN & 2.3300 & 1.0000 & 384.2498 \\
+long & no_unpairing & 200 & 0.0000 & 0.4064 & 406.3979 & 113.9342 & NaN & 2.4050 & 1.0000 & 406.8043 \\
+long & paired_baseline & 200 & 0.0000 & 0.8976 & 219.6716 & 104.2294 & NaN & 1.9200 & 1.0000 & 220.5692 \\
+medium & nils & 250 & 0.0000 & 17.6243 & 263.0353 & 66.0886 & NaN & 2.4000 & 1.0000 & 280.6595 \\
+medium & no_unpairing & 250 & 0.0000 & 0.7644 & 301.6613 & 78.1308 & NaN & 2.1280 & 1.0000 & 302.4257 \\
+medium & paired_baseline & 250 & 0.0000 & 1.4927 & 175.0033 & 82.3430 & NaN & 1.9120 & 1.0000 & 176.4960 \\
+short & nils & 270 & 0.0000 & 16.6438 & 246.1981 & 62.4799 & NaN & 2.3370 & 1.0000 & 262.8419 \\
+short & no_unpairing & 270 & 0.0000 & 2.1517 & 272.8487 & 64.8006 & NaN & 2.1148 & 1.0000 & 275.0004 \\
+short & paired_baseline & 270 & 0.0000 & 2.0603 & 143.0874 & 66.1124 & NaN & 1.7741 & 1.0000 & 145.1477 \\
+\bottomrule
+\end{tabular}

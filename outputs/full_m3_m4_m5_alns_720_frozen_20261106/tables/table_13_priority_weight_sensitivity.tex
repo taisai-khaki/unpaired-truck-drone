@@ -1,0 +1,24 @@
+% tab:priority_weight_sensitivity
+% Sensitivity to priority-weight profiles by method
+\begin{tabular}{llrrrrrrr}
+\toprule
+priority_weight_profile & method_name & n_runs & avg_objective & avg_improvement_vs_truck_only & avg_priority_tardiness_cost & avg_waiting_cost & avg_drone_service_share & feasibility_rate \\
+\midrule
+base & feasibility_aware_alns & 180 & 62421.1844 & NaN & 62222.2591 & 0.0000 & 0.0109 & 1.0000 \\
+base & nils & 180 & 108778.6124 & NaN & 108553.7791 & 0.0000 & 0.0511 & 1.0000 \\
+base & no_unpairing & 180 & 103374.0568 & NaN & 103148.9295 & 0.0000 & 0.0486 & 1.0000 \\
+base & paired_baseline & 180 & 108454.0215 & NaN & 108221.3942 & 0.0000 & 0.0481 & 1.0000 \\
+flat & feasibility_aware_alns & 180 & 965.6630 & NaN & 784.1865 & 0.0000 & 0.0073 & 1.0000 \\
+flat & nils & 180 & 2122.9467 & NaN & 1913.2183 & 0.0000 & 0.0541 & 1.0000 \\
+flat & no_unpairing & 180 & 1973.7356 & NaN & 1760.2487 & 0.0000 & 0.0492 & 1.0000 \\
+flat & paired_baseline & 180 & 2073.9120 & NaN & 1849.2855 & 0.0000 & 0.0498 & 1.0000 \\
+moderate & feasibility_aware_alns & 180 & 14233.4026 & NaN & 14031.4809 & 0.0000 & 0.0093 & 1.0000 \\
+moderate & nils & 180 & 25134.5094 & NaN & 24912.4338 & 0.0000 & 0.0603 & 1.0000 \\
+moderate & no_unpairing & 180 & 22866.7390 & NaN & 22639.2840 & 0.0000 & 0.0508 & 1.0000 \\
+moderate & paired_baseline & 180 & 24485.8768 & NaN & 24251.1764 & 0.0000 & 0.0487 & 1.0000 \\
+strict & feasibility_aware_alns & 180 & 125775.5347 & NaN & 125588.1617 & 0.0000 & 0.0097 & 1.0000 \\
+strict & nils & 180 & 198914.6493 & NaN & 198699.8649 & 0.0000 & 0.0558 & 1.0000 \\
+strict & no_unpairing & 180 & 185346.0113 & NaN & 185125.8326 & 0.0000 & 0.0500 & 1.0000 \\
+strict & paired_baseline & 180 & 195320.0335 & NaN & 195097.0095 & 0.0000 & 0.0469 & 1.0000 \\
+\bottomrule
+\end{tabular}

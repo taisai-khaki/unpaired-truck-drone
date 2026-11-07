@@ -1,0 +1,5 @@
+eligible_share_target,spatial_pattern,objective,improvement,drone_share,truck_distance_reduction
+0.25,clustered,10940.622428910583,,0.0674,
+0.25,uniform,107470.95611924207,,0.048093333333333335,
+0.75,clustered,6426.897330190176,,0.07793333333333333,
+0.75,uniform,117357.91921177326,,0.049185185185185186,

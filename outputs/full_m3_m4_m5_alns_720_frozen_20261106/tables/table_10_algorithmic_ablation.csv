@@ -1,0 +1,4 @@
+method_name,n_runs,avg_objective,avg_improvement,avg_cpu_time,feasibility_rate
+nils,720,83737.67943458246,,33.989020792974365,1.0
+paired_baseline,720,82583.46095151141,,9.485424017906189,1.0
+no_unpairing,720,78390.13567284407,,17.291486698389054,1.0

@@ -1,0 +1,1 @@
+python -u -m src.cli run-heuristic-study --config outputs/full_m3_m4_m5_alns_720_frozen_20261106/run_config.yaml --output-dir outputs/full_m3_m4_m5_alns_720_frozen_20261106

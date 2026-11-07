@@ -1,0 +1,38 @@
+{
+  "generation_cpu_seconds": 0.0074013000121340156,
+  "initialization_feasible": true,
+  "initialization_seed": 2026,
+  "initialization_status": "nils_complete",
+  "instance_id": "S0017_R02",
+  "source_instance_sha256": "d9b346080d8045206b64c85f7e8eab53a8f8f8f3ca638075207a7044c9138208",
+  "truck_routes": {
+    "1": [
+      0,
+      1,
+      2,
+      5,
+      9,
+      10,
+      13,
+      0
+    ],
+    "2": [
+      0,
+      3,
+      4,
+      6,
+      7,
+      8,
+      12,
+      15,
+      0
+    ],
+    "3": [
+      0,
+      11,
+      14,
+      0
+    ]
+  },
+  "truck_routes_sha256": "fcbae1f485e2a57fb11a279b6946ec22ea7206d31f080a462bc947c1786a64dc"
+}
