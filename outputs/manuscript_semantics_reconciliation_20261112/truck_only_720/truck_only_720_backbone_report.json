@@ -1,0 +1,54 @@
+{
+  "all_720_feasible": true,
+  "backbone_count": 720,
+  "by_size": [
+    {
+      "feasible": 230,
+      "infeasible": 0,
+      "instances": 230,
+      "mean_cpu_seconds": 0.008187743913098846,
+      "mean_objective": 6196.523223377756,
+      "median_objective": 1462.1503771069447,
+      "size": 15
+    },
+    {
+      "feasible": 210,
+      "infeasible": 0,
+      "instances": 210,
+      "mean_cpu_seconds": 0.0268238023815987,
+      "mean_objective": 123678.70793113888,
+      "median_objective": 95350.34462344868,
+      "size": 50
+    },
+    {
+      "feasible": 90,
+      "infeasible": 0,
+      "instances": 90,
+      "mean_cpu_seconds": 0.04922526333248243,
+      "mean_objective": 126827.79303159461,
+      "median_objective": 51979.79827562905,
+      "size": 75
+    },
+    {
+      "feasible": 190,
+      "infeasible": 0,
+      "instances": 190,
+      "mean_cpu_seconds": 0.07138524157727309,
+      "mean_objective": 342742.40326205327,
+      "median_objective": 324347.8626643386,
+      "size": 100
+    }
+  ],
+  "completed_count": 720,
+  "execution_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
+  "failures": [],
+  "feasible_count": 720,
+  "full_method_rerun_authorized_by_this_script": false,
+  "infeasible_count": 0,
+  "instance_count": 720,
+  "output_dir": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\manuscript_semantics_reconciliation_20261112\\truck_only_720",
+  "source_dir": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\full_m3_m4_m5_alns_720_frozen_20261106",
+  "status": "PASS_REFERENCE_AUDIT",
+  "total_cpu_seconds": 25.509649199753767,
+  "wall_seconds": 65.72674450001796
+}

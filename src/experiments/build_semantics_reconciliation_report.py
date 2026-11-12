@@ -68,7 +68,7 @@ def build_report(
         row for row in new_methods if not _json_list(row.get("architecture_violations"))
     ]
     u_sync_matches = sum(
-        not _json_list(row.get("common_route_intersections_without_u_sync"))
+        not _json_list(row.get("intersection_events_without_explicit_u_sync"))
         and not _json_list(row.get("explicit_u_sync_without_route_intersection"))
         for row in new_methods
     )

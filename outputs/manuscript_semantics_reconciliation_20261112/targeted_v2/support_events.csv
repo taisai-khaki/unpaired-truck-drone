@@ -1,0 +1,24 @@
+instance_id,method,event_type,event_key,active_rendezvous,required_by_state,state_reason
+S0002_R07,paired_baseline,z1,"[8, 1, 1]",True,True,required by parcel conservation
+S0021_R06,paired_baseline,z1,"[9, 1, 1]",True,True,required by parcel conservation
+S0021_R06,nils,z1,"[1, 1, 1]",True,True,required by parcel conservation
+S0021_R06,nils,z1,"[3, 1, 2]",True,True,required by parcel conservation
+S0021_R06,nils,z1,"[13, 1, 3]",True,True,required by parcel conservation
+S0021_R06,nils,z2,"[13, 1, 3]",True,True,required by battery reserve state
+S0025_R02,no_unpairing,z1,"[37, 1, 1]",True,True,required by parcel conservation
+S0025_R02,no_unpairing,z1,"[48, 2, 1]",True,True,required by parcel conservation
+S0025_R02,nils,z1,"[2, 1, 1]",True,True,required by parcel conservation
+S0025_R02,nils,z1,"[37, 2, 1]",True,True,required by parcel conservation
+S0041_R02,paired_baseline,z1,"[27, 1, 1]",True,True,required by parcel conservation
+S0041_R02,paired_baseline,z1,"[32, 1, 1]",True,True,required by parcel conservation
+S0041_R02,no_unpairing,z1,"[5, 2, 1]",True,True,required by parcel conservation
+S0041_R02,no_unpairing,z1,"[26, 1, 1]",True,True,required by parcel conservation
+S0041_R02,nils,z1,"[12, 1, 2]",True,True,required by parcel conservation
+S0041_R02,nils,z1,"[17, 1, 3]",True,True,required by parcel conservation
+S0041_R02,nils,z1,"[45, 2, 1]",True,True,required by parcel conservation
+S0048_R01,nils,z1,"[13, 1, 3]",True,True,required by parcel conservation
+S0053_R05,no_unpairing,z1,"[49, 1, 3]",True,True,required by parcel conservation
+S0053_R05,nils,z1,"[46, 2, 3]",True,True,required by parcel conservation
+S0053_R05,nils,z1,"[55, 1, 3]",True,True,required by parcel conservation
+S0054_R04,no_unpairing,z1,"[62, 3, 3]",True,True,required by parcel conservation
+S0054_R04,nils,z1,"[70, 2, 2]",True,True,required by parcel conservation

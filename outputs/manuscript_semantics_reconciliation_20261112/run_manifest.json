@@ -1,0 +1,281 @@
+{
+  "manifest_version": 1,
+  "created_utc": "2026-11-12T22:03:26.2119908Z",
+  "execution_code_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
+  "diagnostic_source_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
+  "current_head_before_artifact_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
+  "target_run": {
+    "method_runs": 32,
+    "feasible_runs": 32,
+    "architecture_validator_passes": 32,
+    "route_intersection_u_sync_exact_matches": 32,
+    "run_limits": {
+      "nils_seconds": 120,
+      "nils_max_iter": 25,
+      "nils_max_no_improve": 8,
+      "max_displacement_candidates": 100,
+      "max_repair_candidates": 100,
+      "alns_seconds": 120,
+      "alns_iterations": 40
+    },
+    "configuration_path": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\full_m3_m4_m5_alns_720_frozen_20261106\\run_config.yaml",
+    "configuration_sha256_recorded": "3643d5e95a62d850319e627319b546b5254d3da68a7c85ac7b352caa14883924",
+    "diagnostic_script_sha256_recorded": "a1d6aa94bd4eb357233bf37c2a8c5e6c769046cb5c9bdd39b131ea29e28ad26f",
+    "selected_instance_hashes": [
+      {
+        "instance_id": "S0002_R07",
+        "instance_sha256": "0861de5182c6e9e330642b5c51cc5c756f8992c62abb2edb579f5eb1328585ca",
+        "backbone_file_sha256": "4af6c1d6e5122ea489c059dac72c73ccbd08e2ca388dce219a463401437a16b5",
+        "backbone_routes_sha256": "5459fd9f524258f1aa6a4a2b5acd0ed0e742d7419e0e54fe1e265fada8477a88"
+      },
+      {
+        "instance_id": "S0021_R06",
+        "instance_sha256": "65d983c344cc46712be53bbbaa4ef2723f9125bbde35513684ae5566ba1bf2bd",
+        "backbone_file_sha256": "e06f48e54110365529fd6a60f0635a7fb218ffa8014b6baf5c438f952cc22772",
+        "backbone_routes_sha256": "be9698502e410fd3f0457c43d347976b5876d1749e225d8953d0d4fcce6744a7"
+      },
+      {
+        "instance_id": "S0025_R02",
+        "instance_sha256": "c500c9add2ea14a2a21bfd9c61d6ee1b8772be976684917d72c2500765fdc5dc",
+        "backbone_file_sha256": "ca32d228feefa476e5f45af73f9c534b04e1128e905db1f836459d13eeba23db",
+        "backbone_routes_sha256": "c44bfb025641fd9446da49ac4523795b516730b510f04938f4a6ab38a34b4c46"
+      },
+      {
+        "instance_id": "S0041_R02",
+        "instance_sha256": "b73e7e32aaf3d9659638b19e34c40451c50356c4f3d3132ed3166d75f716d1c9",
+        "backbone_file_sha256": "fb5d56d66516ef3119e2c70389dc67e1354f87c8dfdf14480a405c516666ac2f",
+        "backbone_routes_sha256": "c44bfb025641fd9446da49ac4523795b516730b510f04938f4a6ab38a34b4c46"
+      },
+      {
+        "instance_id": "S0048_R01",
+        "instance_sha256": "43bf546321d703a53a663527c20b30ce0c99c18d318996cc60112eddc381c3af",
+        "backbone_file_sha256": "36a031f3f808e79ede050cd81f1bc4ae56bcd04467de2af4527a13a9e731e8fc",
+        "backbone_routes_sha256": "ad2a21333608613bdebb75dc1af63e95c5ed59bf23c85d912bac5ee5f261d952"
+      },
+      {
+        "instance_id": "S0053_R05",
+        "instance_sha256": "14ec3e819ef67c8971f16eb0ff13571dabb14a669da7cc2427042cf27b062a38",
+        "backbone_file_sha256": "96a5542e0e182489663b3c2c527a27a7070c27462192ad0d468d481a9b3bd874",
+        "backbone_routes_sha256": "83e837c76ffa501847ac15c346e61a148d3d8d3946a26ec182f8463c5a0d1ab2"
+      },
+      {
+        "instance_id": "S0054_R04",
+        "instance_sha256": "7e88fb006cdb89bfd462d2ef559b56ad6601319d9e40e0353f160664687961da",
+        "backbone_file_sha256": "6b0c531e8f4af5cb6b89178e29f855b07abb967378ddd8f6d7943d4ab6466ca2",
+        "backbone_routes_sha256": "db581e784f1ccd63540daff713b0fade52a5c5428eb38b67e54362fffc9845ce"
+      },
+      {
+        "instance_id": "S0068_R08",
+        "instance_sha256": "befb0e2c2243e2d7510a8a051d91ee459929a401d60764277ccdc99972081428",
+        "backbone_file_sha256": "bb05299c5aaa2ad17b2de6932a5d6cc60017a0b7042d05baf416ecf843bbffb1",
+        "backbone_routes_sha256": "94e7093783fbd62088a16801d3dc52f36e6ca636c962ec16e66ce8c4dbb36a99"
+      }
+    ],
+    "alns_passes_current_m5_validator": true,
+    "alns_sortie_type_distribution": {
+      "depot-depot": 4
+    }
+  },
+  "truck_only_audit": {
+    "status": "PASS_REFERENCE_AUDIT",
+    "instances": 720,
+    "feasible": 720,
+    "infeasible": 0,
+    "wall_seconds": 65.72674450001796,
+    "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\full_m3_m4_m5_alns_720_frozen_20261106",
+    "full_method_rerun_authorized_or_performed": false
+  },
+  "historical_counterfactual": {
+    "feasibility_changed_runs": 0,
+    "forced_support_events_by_method": {
+      "feasibility_aware_alns": {
+        "z1_forced_by_launch_label": 0,
+        "z2_forced_by_recovery_label": 0
+      },
+      "nils": {
+        "z1_forced_by_launch_label": 9,
+        "z2_forced_by_recovery_label": 34
+      },
+      "no_unpairing": {
+        "z1_forced_by_launch_label": 10,
+        "z2_forced_by_recovery_label": 19
+      },
+      "paired_baseline": {
+        "z1_forced_by_launch_label": 7,
+        "z2_forced_by_recovery_label": 13
+      }
+    },
+    "interpretation": "This comparison holds the previously saved routes fixed and changes only z1/z2 to state-required actions; it isolates the operating-convention correction from search changes.",
+    "nils_family_forced_z1_total": 26,
+    "nils_family_forced_z2_total": 66,
+    "nils_family_runs": 24,
+    "objective_changed_runs": 18,
+    "objective_changed_runs_nils_family": 18,
+    "objective_delta_max": 0.0,
+    "objective_delta_min": -12225.24268953607,
+    "objective_delta_sum": -34025.812905097286,
+    "old_target_method_runs": 32,
+    "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\targeted_event_semantics_diagnostic_20261112"
+  },
+  "full_720_method_rerun_performed": false,
+  "validation": "Final pytest -q: 42 passed, 1 skipped in 51.35s; report-builder output generated and checked.",
+  "output_file_hashes": [
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/diagnostic_checkpoint.json",
+      "bytes": 580531,
+      "sha256": "abff96fc17467f301f2a9556f7ba01cea1fc1db679b2fc6d1d3fc9fd44d03423"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/drone_legs.csv",
+      "bytes": 23757,
+      "sha256": "13b9cdc7771d09af7df2c86d1c13672a054d653fb82259b7c90e774c8c73fa74"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/event_semantics_diagnostic.json",
+      "bytes": 585144,
+      "sha256": "7fec8d8df5a360b2d1be7bd7bbde02f76ef0d499f9691639f4cc991b13aa2301"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/method_summary.csv",
+      "bytes": 202396,
+      "sha256": "515dfbd9cd3d8c66f91f36c9ca1c762fd91f52795f53ac6846282d9f528f125b"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/rendezvous_events.csv",
+      "bytes": 25837,
+      "sha256": "8b06b8c02c731da4d167b7d1849314076c4e5da51831ac5f4305af48fdd41d38"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/sorties.csv",
+      "bytes": 5827,
+      "sha256": "6da21ed283cd9c060031a76afdf578ed3d686ba4caf4f1d6a89b909f7e5ad789"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/support_counterfactuals.csv",
+      "bytes": 2971,
+      "sha256": "1bdb98422eaef60fb40ef4fe438233e1f475047f75bb0e87d89affc0fd1f08c9"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/support_events.csv",
+      "bytes": 1880,
+      "sha256": "bf920b7b286a15f86fb5904aef8d11b18124165edc1d54390253f4c4d4572ee5"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/truck_only_backbone_reference.csv",
+      "bytes": 2941,
+      "sha256": "20045c973fb2c242ae4dedb32aa5a851535f278aac81d999a62c20e599c50a96"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/truck_only_constructor_audit.csv",
+      "bytes": 1623,
+      "sha256": "12939adc09bba142fdb2dcdeff467f2d62f58cd25010bcc2f537c773c8c98f81"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/truck_only_720/truck_only_720_backbone_audit.csv",
+      "bytes": 352592,
+      "sha256": "eab836eb08d69a53a1da151c7ae490248db39db5aa1020d5970ac086145c18bd"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/truck_only_720/truck_only_720_backbone_report.json",
+      "bytes": 1743,
+      "sha256": "72f346b688f9ff5f1cf21e652f4b146d943963afb0c072ad496a14562f66b1cd"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/truck_only_720/truck_only_720_backbone_report.md",
+      "bytes": 618,
+      "sha256": "f9944e3a1354e76095d959602dd38c3af7e18f51ee0f764583c581855d2c0394"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/truck_only_720/truck_only_720_by_size.csv",
+      "bytes": 368,
+      "sha256": "3876ef1525e90fdc47b446db7675ca96cae1e69f0b8aae8a5f00e4e468a4a3f7"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/truck_only_720/truck_only_720_checkpoint.json",
+      "bytes": 657989,
+      "sha256": "c3b712be2bf895057c7933bfb425a5269905415d744807484e6b4a8086fe3050"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/manuscript_semantics_reconciliation_report.json",
+      "bytes": 5092,
+      "sha256": "731b0569e0cfb5babba8bc4573922aa31a6becf6c6a4c302345cb0481dc4a844"
+    },
+    {
+      "path": "outputs/manuscript_semantics_reconciliation_20261112/manuscript_semantics_reconciliation_report.md",
+      "bytes": 1836,
+      "sha256": "e2e601950118cf025191b79f54c07dd0c77c4b5fdfeb60f7b989b25aed4fd05a"
+    }
+  ],
+  "source_and_input_file_hashes": [
+    {
+      "path": "src/drone_state.py",
+      "bytes": 22307,
+      "sha256": "7eb8340bd6b63da4a60dcf90505ffa411f4132595af5c9512cbe63cb7392e920"
+    },
+    {
+      "path": "src/timing.py",
+      "bytes": 6121,
+      "sha256": "cc471355ba6939f6b2a19c18f385a3d8e9d404320f3547e6d5f9debf7d0ff697"
+    },
+    {
+      "path": "src/feasibility.py",
+      "bytes": 18384,
+      "sha256": "b689ccec0d8322163a3ce5bc1e0102fc85fe0a49bdbab22d05483b635b3f32aa"
+    },
+    {
+      "path": "src/heuristics/nils.py",
+      "bytes": 102379,
+      "sha256": "4b4a8a047f751ea43763cfd698898657acc34971808abe8262ddfa93d5534a32"
+    },
+    {
+      "path": "src/heuristics/architecture.py",
+      "bytes": 9106,
+      "sha256": "ae5bda9c1ec1008ae2dfb412acece312ae9badabed5d69e5e6535ca181eae95d"
+    },
+    {
+      "path": "src/heuristics/alns.py",
+      "bytes": 27847,
+      "sha256": "6ac689e41f95a2e85635d98e9c0c0e1e0636d9f4425ce491fc855dd5a4be0a7c"
+    },
+    {
+      "path": "src/experiments/run_event_semantics_diagnostic.py",
+      "bytes": 43871,
+      "sha256": "a1d6aa94bd4eb357233bf37c2a8c5e6c769046cb5c9bdd39b131ea29e28ad26f"
+    },
+    {
+      "path": "src/experiments/run_truck_only_backbone_audit.py",
+      "bytes": 10364,
+      "sha256": "2a2abc583bdb1b0dd9a807eecf5b4055d6bd918df8d9f126d831e6da65a20341"
+    },
+    {
+      "path": "src/experiments/build_semantics_reconciliation_report.py",
+      "bytes": 10330,
+      "sha256": "1ce9c002fe93a57bd7cbe8b8db6318e90ab248e2cd5715849054b695b6850935"
+    },
+    {
+      "path": "tests/test_drone_state_transitions.py",
+      "bytes": 7740,
+      "sha256": "41e9091a699313d72afcb79426f3fea5c318d51a9ecb348ec35cc86e844d8871"
+    },
+    {
+      "path": "tests/test_nils_architecture_regressions.py",
+      "bytes": 8550,
+      "sha256": "b8add8054aeea68f0d8e735d78ba2bc0a09bbe11fde36567d8755ab6468e366c"
+    },
+    {
+      "path": "outputs/full_m3_m4_m5_alns_720_frozen_20261106/run_config.yaml",
+      "bytes": 2244,
+      "sha256": "3643d5e95a62d850319e627319b546b5254d3da68a7c85ac7b352caa14883924"
+    },
+    {
+      "path": "outputs/targeted_event_semantics_diagnostic_20261112/method_summary.csv",
+      "bytes": 227436,
+      "sha256": "9a547de68032700797b8bebf66098eb0ea06f38995427a1c44561f4831dac82c"
+    },
+    {
+      "path": "outputs/targeted_event_semantics_diagnostic_20261112/support_counterfactuals.csv",
+      "bytes": 3107,
+      "sha256": "bcb25ce103b393c78e5dc3c455b5db3ff48c1d826af00a0e74919e3fdeef9be1"
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "full_720_method_experiment_run": false,
+  "historical_fixed_route_support_counterfactual": {
+    "feasibility_changed_runs": 0,
+    "forced_support_events_by_method": {
+      "feasibility_aware_alns": {
+        "z1_forced_by_launch_label": 0,
+        "z2_forced_by_recovery_label": 0
+      },
+      "nils": {
+        "z1_forced_by_launch_label": 9,
+        "z2_forced_by_recovery_label": 34
+      },
+      "no_unpairing": {
+        "z1_forced_by_launch_label": 10,
+        "z2_forced_by_recovery_label": 19
+      },
+      "paired_baseline": {
+        "z1_forced_by_launch_label": 7,
+        "z2_forced_by_recovery_label": 13
+      }
+    },
+    "interpretation": "This comparison holds the previously saved routes fixed and changes only z1/z2 to state-required actions; it isolates the operating-convention correction from search changes.",
+    "nils_family_forced_z1_total": 26,
+    "nils_family_forced_z2_total": 66,
+    "nils_family_runs": 24,
+    "objective_changed_runs": 18,
+    "objective_changed_runs_nils_family": 18,
+    "objective_delta_max": 0.0,
+    "objective_delta_min": -12225.24268953607,
+    "objective_delta_sum": -34025.812905097286,
+    "old_target_method_runs": 32,
+    "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\targeted_event_semantics_diagnostic_20261112"
+  },
+  "new_targeted_run": {
+    "alns_all_m5_validator_pass": true,
+    "alns_runs": 8,
+    "alns_sortie_type_distribution": {
+      "depot-depot": 4
+    },
+    "architecture_validator_passes": 32,
+    "by_method": {
+      "feasibility_aware_alns": {
+        "architecture_pass": 8,
+        "feasible": 8,
+        "forced_z1_count": 0,
+        "forced_z2_count": 0,
+        "mean_cpu_seconds": 68.44082319736481,
+        "mean_objective": 52127.447404768565,
+        "runs": 8
+      },
+      "nils": {
+        "architecture_pass": 8,
+        "feasible": 8,
+        "forced_z1_count": 0,
+        "forced_z2_count": 0,
+        "mean_cpu_seconds": 45.72419151250142,
+        "mean_objective": 81056.66381571397,
+        "runs": 8
+      },
+      "no_unpairing": {
+        "architecture_pass": 8,
+        "feasible": 8,
+        "forced_z1_count": 0,
+        "forced_z2_count": 0,
+        "mean_cpu_seconds": 21.541997725005785,
+        "mean_objective": 72557.09722932288,
+        "runs": 8
+      },
+      "paired_baseline": {
+        "architecture_pass": 8,
+        "feasible": 8,
+        "forced_z1_count": 0,
+        "forced_z2_count": 0,
+        "mean_cpu_seconds": 12.10973022500184,
+        "mean_objective": 76543.67459856204,
+        "runs": 8
+      }
+    },
+    "feasible_runs": 32,
+    "method_runs": 32,
+    "nils_family_forced_z1_count": 0,
+    "nils_family_forced_z2_count": 0,
+    "nils_family_runs": 24,
+    "route_intersection_u_sync_exact_matches": 32,
+    "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\manuscript_semantics_reconciliation_20261112\\targeted_v2"
+  },
+  "purpose": "Targeted implementation validation and matched truck-only reference audit; not the full method experiment.",
+  "truck_only_720_backbone_audit": {
+    "all_720_feasible": true,
+    "backbone_count": 720,
+    "by_size": [
+      {
+        "feasible": 230,
+        "infeasible": 0,
+        "instances": 230,
+        "mean_cpu_seconds": 0.008187743913098846,
+        "mean_objective": 6196.523223377756,
+        "median_objective": 1462.1503771069447,
+        "size": 15
+      },
+      {
+        "feasible": 210,
+        "infeasible": 0,
+        "instances": 210,
+        "mean_cpu_seconds": 0.0268238023815987,
+        "mean_objective": 123678.70793113888,
+        "median_objective": 95350.34462344868,
+        "size": 50
+      },
+      {
+        "feasible": 90,
+        "infeasible": 0,
+        "instances": 90,
+        "mean_cpu_seconds": 0.04922526333248243,
+        "mean_objective": 126827.79303159461,
+        "median_objective": 51979.79827562905,
+        "size": 75
+      },
+      {
+        "feasible": 190,
+        "infeasible": 0,
+        "instances": 190,
+        "mean_cpu_seconds": 0.07138524157727309,
+        "mean_objective": 342742.40326205327,
+        "median_objective": 324347.8626643386,
+        "size": 100
+      }
+    ],
+    "completed_count": 720,
+    "execution_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
+    "failures": [],
+    "feasible_count": 720,
+    "full_method_rerun_authorized_by_this_script": false,
+    "infeasible_count": 0,
+    "instance_count": 720,
+    "output_dir": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\manuscript_semantics_reconciliation_20261112\\truck_only_720",
+    "source_dir": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\full_m3_m4_m5_alns_720_frozen_20261106",
+    "status": "PASS_REFERENCE_AUDIT",
+    "total_cpu_seconds": 25.509649199753767,
+    "wall_seconds": 65.72674450001796
+  }
+}
