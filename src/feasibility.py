@@ -8,6 +8,12 @@ import numpy as np
 
 from .data_models import InstanceData, SolutionData
 from .distance_utils import euclidean_distance, manhattan_distance, travel_time_from_distance
+from .drone_state import (
+    analyze_drone_states,
+    route_intersection_events,
+    simulate_drone_states,
+    support_state_mismatches,
+)
 from .timing import (
     active_rendezvous_events,
     compute_synchronization_waiting,
@@ -241,68 +247,55 @@ def validate_solution(instance: InstanceData, solution: SolutionData, *, tol: fl
         if load < -tol:
             findings.append(ValidationFinding("LOAD", "ERROR", f"Truck {t} negative final load", "truck", t))
 
-    # Battery feasibility, including the residual reserve at every visited node.
-    for d in instance.drone_ids():
-        battery = instance.drones[d - 1].max_battery_wh
-        drone = instance.drones[d - 1]
-        speed = drone.speed_kmph
-        reserve_ratio = float(instance.metadata.get("battery_slack_ratio", 0.10))
-        reserve = max(0.0, min(1.0, reserve_ratio)) * drone.max_battery_wh
-        route = drone_routes[d]
-        service_nodes = {
-            node for node in route
-            if node != 0 and solution.u_drone.get((d, node), 0) >= 0.5
-        }
-        loaded_service_nodes: set[int] = set()
-        first_service_index = next(
-            (idx for idx, node in enumerate(route) if node in service_nodes), None
+    # Route intersections define rendezvous; parcel and battery support actions
+    # are validated from one shared state transition model.
+    expected_events = route_intersection_events(solution)
+    explicit_events = {
+        (int(node), int(drone), int(truck))
+        for (node, drone, truck), value in solution.u_sync.items()
+        if value > 0.5
+    }
+    for node, drone, truck in sorted(expected_events - explicit_events):
+        findings.append(
+            ValidationFinding(
+                "SYNC_MISSING",
+                "ERROR",
+                f"Drone {drone} and truck {truck} share node {node} without u_sync",
+                "drone",
+                node,
+            )
         )
-        first_reload_index = next(
-            (
-                idx for idx, node in enumerate(route)
-                if any(
-                    solution.z1.get((node, d, t), 0) > 0.5
-                    for t in instance.truck_ids()
-                )
-            ),
-            None,
+    for node, drone, truck in sorted(explicit_events - expected_events):
+        findings.append(
+            ValidationFinding(
+                "SYNC_EXTRA",
+                "ERROR",
+                f"u_sync at node {node} for drone {drone} and truck {truck} lacks a joint route visit",
+                "drone",
+                node,
+            )
         )
-        loaded = first_service_index is None or first_reload_index is None or first_service_index < first_reload_index
-        missing_route_service = service_nodes - set(route)
-        for node in sorted(missing_route_service):
-            findings.append(ValidationFinding("DRONE_SERVICE_ROUTE", "ERROR", f"Drone {d} serves customer {node} but the customer is absent from its route", "drone", node))
-        visited = set()
-        for i_idx in range(len(route) - 1):
-            frm = route[i_idx]
-            to = route[i_idx + 1]
-            if frm in visited:
-                break
-            visited.add(frm)
-            arc_time = travel_time_from_distance(dist_euc[frm, to], speed)
-            burn = drone.energy_per_min_when_loaded if loaded else drone.energy_per_min_when_empty
-            battery -= burn * arc_time
-            if battery < -tol:
-                findings.append(ValidationFinding("ENERGY", "ERROR", f"Drone {d} battery infeasible on {frm}->{to}", "drone", d))
-            if to != 0 and battery < reserve - tol:
-                findings.append(ValidationFinding("BATTERY_RESERVE", "ERROR", f"Drone {d} reaches node {to} below the residual battery reserve", "drone", to))
-            if to == 0 and any(node != 0 for node in route) and battery < reserve - tol:
-                findings.append(ValidationFinding("BATTERY_RESERVE", "ERROR", f"Drone {d} returns to the depot below the residual battery reserve", "drone", d))
-            if to != 0 and solution.u_drone.get((d, to), 0) >= 0.5:
-                if not loaded:
-                    findings.append(ValidationFinding("PARCEL_STATE", "ERROR", f"Drone {d} serves customer {to} without a loaded parcel", "drone", to))
-                else:
-                    loaded_service_nodes.add(to)
-                loaded = False
-            if to != 0 and any(
-                value > 0.5 for (node, drone_id, _truck_id), value in solution.z1.items()
-                if node == to and drone_id == d
-            ):
-                loaded = True
-            swap_here = any(solution.z2.get((to, d, tt), 0) for tt in instance.truck_ids())
-            if swap_here:
-                battery = drone.max_battery_wh
-        for node in sorted(service_nodes - loaded_service_nodes):
-            findings.append(ValidationFinding("PARCEL_STATE", "ERROR", f"Drone {d} customer {node} has no loaded sortie arrival", "drone", node))
+
+    state_analysis = analyze_drone_states(instance, solution, events=expected_events)
+    for issue in state_analysis.issues:
+        findings.append(
+            ValidationFinding(issue.code, "ERROR", issue.message, "drone", issue.node)
+        )
+    for issue in support_state_mismatches(solution, state_analysis):
+        findings.append(
+            ValidationFinding(issue.code, "ERROR", issue.message, "drone", issue.node)
+        )
+    actual_state = simulate_drone_states(instance, solution)
+    seen_state_errors = {
+        (item.code, item.message)
+        for item in findings
+        if item.vehicle == "drone" and item.severity == "ERROR"
+    }
+    for issue in actual_state.issues:
+        if (issue.code, issue.message) not in seen_state_errors:
+            findings.append(
+                ValidationFinding(issue.code, "ERROR", issue.message, "drone", issue.node)
+            )
 
     # Delivery time is the arrival time of the vehicle assigned to serve the
     # customer; an unrelated synchronization visit must not determine L_i.

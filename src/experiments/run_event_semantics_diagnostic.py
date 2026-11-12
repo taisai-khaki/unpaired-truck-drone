@@ -10,7 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from ..data_models import InstanceData, SolutionData
-from ..distance_utils import euclidean_distance
+from ..drone_state import (
+    analyze_drone_states,
+    route_intersection_events,
+    simulate_drone_states,
+)
 from ..feasibility import validate_solution
 from ..heuristics.architecture import sortie_associations, validate_drone_architecture
 from ..heuristics.nils import (
@@ -87,13 +91,7 @@ def _route_intersection_events(
     instance: InstanceData,
     solution: SolutionData,
 ) -> set[tuple[int, int, int]]:
-    events: set[tuple[int, int, int]] = set()
-    for drone_id, drone_route in solution.drone_routes.items():
-        drone_nodes = {int(node) for node in drone_route if int(node) != 0}
-        for truck_id, truck_route in solution.truck_routes.items():
-            common = drone_nodes.intersection(int(node) for node in truck_route if int(node) != 0)
-            events.update((node, int(drone_id), int(truck_id)) for node in common)
-    return events
+    return route_intersection_events(solution)
 
 
 def _events_by_drone_node(events: set[tuple[int, int, int]]) -> dict[int, dict[int, list[tuple[int, int, int]]]]:
@@ -117,144 +115,19 @@ def _truck_for_node(events_at_node: list[tuple[int, int, int]]) -> int | None:
     return next(iter(truck_ids)) if len(truck_ids) == 1 else None
 
 
-def _segment_energy(
-    instance: InstanceData,
-    drone_id: int,
-    route: list[int],
-    loaded_by_leg: list[bool],
-    start_position: int,
-    end_position: int,
-) -> float:
-    drone = instance.drones[drone_id - 1]
-    coordinates = instance.coordinate_map()
-    energy = 0.0
-    for leg_position in range(start_position, min(end_position, len(route) - 1)):
-        frm = int(route[leg_position])
-        to = int(route[leg_position + 1])
-        distance = euclidean_distance(coordinates[frm], coordinates[to])
-        travel_minutes = distance / max(float(drone.speed_kmph), 1e-9) * 60.0
-        rate = drone.energy_per_min_when_loaded if loaded_by_leg[leg_position] else drone.energy_per_min_when_empty
-        if rate <= 0:
-            rate = 20.0 if loaded_by_leg[leg_position] else 15.0
-        energy += float(rate) * travel_minutes
-    return energy
-
-
-def _future_service_before_next_event(
-    route: list[int],
-    services: set[int],
-    event_positions: list[int],
-    position: int,
-) -> bool:
-    next_event = next((idx for idx in event_positions if idx > position), len(route) - 1)
-    return any(int(route[idx]) in services for idx in range(position + 1, next_event + 1))
-
-
 def _derive_state_support_flags(
     instance: InstanceData,
     solution: SolutionData,
     events: set[tuple[int, int, int]],
 ) -> tuple[dict[tuple[int, int, int], int], dict[tuple[int, int, int], int], dict[str, list[str]]]:
-    reloads: dict[tuple[int, int, int], int] = {}
-    swaps: dict[tuple[int, int, int], int] = {}
-    findings: dict[str, list[str]] = {"parcel": [], "battery": []}
-    events_by_drone = _events_by_drone_node(events)
-
-    for drone_id in instance.drone_ids():
-        route = [int(node) for node in solution.drone_routes.get(drone_id, [0, 0])]
-        services = _service_nodes(solution, drone_id)
-        event_positions = sorted(
-            route.index(node)
-            for node in events_by_drone.get(drone_id, {})
-            if node in route
-        )
-        events_at_position = {
-            route.index(node): events_by_drone[drone_id][node]
-            for node in events_by_drone.get(drone_id, {})
-            if node in route
-        }
-        loaded = True
-        z1_for_drone: dict[tuple[int, int, int], int] = {}
-        for position, node in enumerate(route):
-            if position > 0 and node in services:
-                if not loaded:
-                    findings["parcel"].append(
-                        f"drone {drone_id} reaches service {node} without a loaded parcel"
-                    )
-                loaded = False
-            if position in events_at_position:
-                needs_reload = (
-                    not loaded
-                    and _future_service_before_next_event(route, services, event_positions, position)
-                )
-                if needs_reload:
-                    truck_id = _truck_for_node(events_at_position[position])
-                    if truck_id is None:
-                        findings["parcel"].append(
-                            f"drone {drone_id} has ambiguous truck identity at reload node {node}"
-                        )
-                    else:
-                        key = (node, drone_id, truck_id)
-                        z1_for_drone[key] = 1
-                        loaded = True
-        reloads.update(z1_for_drone)
-
-        loaded = True
-        loaded_by_leg: list[bool] = []
-        for position in range(max(0, len(route) - 1)):
-            node = route[position]
-            if position > 0 and node in services:
-                loaded = False
-            if position in events_at_position:
-                truck_id = _truck_for_node(events_at_position[position])
-                if truck_id is not None and z1_for_drone.get((node, drone_id, truck_id), 0) > 0:
-                    loaded = True
-            loaded_by_leg.append(loaded)
-
-        drone = instance.drones[drone_id - 1]
-        max_battery = float(drone.max_battery_wh)
-        reserve = max_battery * max(0.0, float(instance.metadata.get("battery_slack_ratio", 0.10)))
-        battery = max_battery
-        for position in range(max(0, len(route) - 1)):
-            node = route[position]
-            if position in events_at_position:
-                next_event_position = next(
-                    (idx for idx in event_positions if idx > position), len(route) - 1
-                )
-                needed = _segment_energy(
-                    instance,
-                    drone_id,
-                    route,
-                    loaded_by_leg,
-                    position,
-                    next_event_position,
-                )
-                needs_swap = battery - needed < reserve - 1e-9
-                if needs_swap:
-                    truck_id = _truck_for_node(events_at_position[position])
-                    if max_battery - needed < reserve - 1e-9:
-                        findings["battery"].append(
-                            f"drone {drone_id} cannot complete segment after rendezvous {node} even with a full battery"
-                        )
-                    elif truck_id is None:
-                        findings["battery"].append(
-                            f"drone {drone_id} has ambiguous truck identity at swap node {node}"
-                        )
-                    else:
-                        key = (node, drone_id, truck_id)
-                        swaps[key] = 1
-                        battery = max_battery
-            frm = int(route[position])
-            to = int(route[position + 1])
-            energy = _segment_energy(
-                instance, drone_id, route, loaded_by_leg, position, position + 1
-            )
-            battery -= energy
-            if battery < reserve - 1e-9:
-                findings["battery"].append(
-                    f"drone {drone_id} reaches node {to} below reserve without a support event"
-                )
-    return reloads, swaps, findings
+    analysis = analyze_drone_states(instance, solution, events=events)
+    findings: dict[str, list[str]] = {"parcel": [], "battery": [], "other": []}
+    for issue in analysis.issues:
+        category = "parcel" if issue.code.startswith("PARCEL") else "battery" if issue.code in {
+            "ENERGY", "BATTERY_RESERVE", "BATTERY_SEGMENT"
+        } else "other"
+        findings[category].append(issue.message)
+    return analysis.required_z1, analysis.required_z2, findings
 
 
 def _support_trace(
@@ -265,134 +138,86 @@ def _support_trace(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, list[str]]]:
     route = [int(node) for node in solution.drone_routes.get(drone_id, [0, 0])]
     services = _service_nodes(solution, drone_id)
+    expected = analyze_drone_states(instance, solution, events=events)
+    actual = simulate_drone_states(instance, solution)
     events_by_drone = _events_by_drone_node(events).get(drone_id, {})
-    event_positions = sorted(route.index(node) for node in events_by_drone if node in route)
-    events_at_position = {
-        route.index(node): events_by_drone[node]
-        for node in events_by_drone
-        if node in route
-    }
-    drone = instance.drones[drone_id - 1]
-    max_battery = float(drone.max_battery_wh)
-    reserve = max_battery * max(0.0, float(instance.metadata.get("battery_slack_ratio", 0.10)))
-    loaded = True
-    battery = max_battery
     legs: list[dict[str, Any]] = []
     event_rows: list[dict[str, Any]] = []
     violations: dict[str, list[str]] = {"parcel": [], "battery": [], "orphan_support": []}
-    z1_by_node: dict[int, list[tuple[int, int, int]]] = defaultdict(list)
-    z2_by_node: dict[int, list[tuple[int, int, int]]] = defaultdict(list)
-    for key, value in solution.z1.items():
-        if value > 0.5 and key[1] == drone_id:
-            z1_by_node[int(key[0])].append((int(key[0]), int(key[1]), int(key[2])))
-    for key, value in solution.z2.items():
-        if value > 0.5 and key[1] == drone_id:
-            z2_by_node[int(key[0])].append((int(key[0]), int(key[1]), int(key[2])))
-    for node in set(z1_by_node) | set(z2_by_node):
-        if node not in events_by_drone:
-            violations["orphan_support"].append(
-                f"drone {drone_id} has reload/swap at {node} without u_sync"
-            )
+    for issue in expected.issues + actual.issues:
+        group = (
+            "parcel"
+            if issue.code.startswith("PARCEL")
+            else "orphan_support"
+            if issue.code.startswith("UNMATCHED")
+            else "battery"
+        )
+        if issue.drone_id == drone_id:
+            violations[group].append(issue.message)
 
-    loaded_by_leg: list[bool] = []
-    load_state = True
-    for position in range(max(0, len(route) - 1)):
-        node = route[position]
-        if position > 0 and node in services:
-            load_state = False
-        at_event = events_at_position.get(position, [])
-        if at_event and any(key in z1_by_node.get(node, []) for key in at_event):
-            load_state = True
-        loaded_by_leg.append(load_state)
-
-    for position, node in enumerate(route):
-        if position > 0 and node in services:
-            if not loaded:
-                violations["parcel"].append(
-                    f"drone {drone_id} serves customer {node} without a loaded parcel"
-                )
-            loaded = False
-        if position in events_at_position:
-            event_keys = events_at_position[position]
-            matching_z1 = [key for key in z1_by_node.get(node, []) if key in event_keys]
-            matching_z2 = [key for key in z2_by_node.get(node, []) if key in event_keys]
-            future_service = _future_service_before_next_event(route, services, event_positions, position)
-            parcel_required = not loaded and future_service
-            parcel_reason = (
-                "required: empty parcel state before a later service"
-                if parcel_required
-                else "not required: parcel already loaded or no service before next rendezvous"
-            )
-            if matching_z1:
-                loaded = True
-            battery_before = battery
-            next_event_position = next(
-                (idx for idx in event_positions if idx > position), len(route) - 1
-            )
-            energy_to_next_event = _segment_energy(
-                instance, drone_id, route, loaded_by_leg, position, next_event_position
-            )
-            swap_required = battery_before - energy_to_next_event < reserve - 1e-9
-            swap_reason = (
-                "required: without restoration the next flight segment violates reserve"
-                if swap_required
-                else "not required: remaining battery covers the next segment"
-            )
-            if matching_z2:
-                battery = max_battery
-            for event_key in event_keys:
-                event_truck = int(event_key[2])
-                event_rows.append(
-                    {
-                        "node": int(node),
-                        "drone_id": int(drone_id),
-                        "truck_id": event_truck,
-                        "event_key": list(event_key),
-                        "z1": event_key in matching_z1,
-                        "z1_required": bool(parcel_required),
-                        "z1_reason": parcel_reason,
-                        "z2": event_key in matching_z2,
-                        "z2_required": bool(swap_required),
-                        "z2_reason": swap_reason,
-                        "battery_before_support_wh": battery_before,
-                        "battery_after_support_wh": battery,
-                        "energy_to_next_event_or_depot_wh": energy_to_next_event,
-                        "handling_minutes": synchronization_handling_minutes(
-                            instance, solution, int(node), int(drone_id), event_truck
-                        ),
-                    }
-                )
-        if position >= len(route) - 1:
+    for leg in actual.legs:
+        if leg.drone_id != drone_id:
             continue
-        frm = int(route[position])
-        to = int(route[position + 1])
-        distance = euclidean_distance(instance.coordinate_map()[frm], instance.coordinate_map()[to])
-        travel_minutes = distance / max(float(drone.speed_kmph), 1e-9) * 60.0
-        loaded_for_leg = loaded
-        rate = drone.energy_per_min_when_loaded if loaded_for_leg else drone.energy_per_min_when_empty
-        if rate <= 0:
-            rate = 20.0 if loaded_for_leg else 15.0
-        energy = float(rate) * travel_minutes
-        battery_before_leg = battery
-        battery -= energy
         legs.append(
             {
                 "drone_id": int(drone_id),
-                "leg_index": int(position),
-                "from_node": frm,
-                "to_node": to,
-                "cargo_state": "loaded" if loaded_for_leg else "empty",
-                "battery_before_leg_wh": battery_before_leg,
-                "energy_wh": energy,
-                "battery_after_arrival_wh": battery,
-                "is_service_arrival": to in services,
-                "is_rendezvous_arrival": to in events_by_drone,
+                "leg_index": int(leg.leg_index),
+                "from_node": int(leg.from_node),
+                "to_node": int(leg.to_node),
+                "cargo_state": "loaded" if leg.loaded else "empty",
+                "battery_before_leg_wh": float(leg.battery_before_wh),
+                "energy_wh": float(leg.energy_wh),
+                "battery_after_arrival_wh": float(leg.battery_after_arrival_wh),
+                "is_service_arrival": int(leg.to_node) in services,
+                "is_rendezvous_arrival": int(leg.to_node) in events_by_drone,
             }
         )
-        if battery < reserve - 1e-9:
-            violations["battery"].append(
-                f"drone {drone_id} reaches node {to} below reserve"
-            )
+
+    actual_events = {state.event_key: state for state in actual.rendezvous}
+    for state in expected.rendezvous:
+        event_key = state.event_key
+        if event_key[1] != drone_id:
+            continue
+        actual_event = actual_events.get(event_key)
+        actual_z1 = bool(solution.z1.get(event_key, 0) > 0.5)
+        actual_z2 = bool(solution.z2.get(event_key, 0) > 0.5)
+        event_truck = int(event_key[2])
+        event_rows.append(
+            {
+                "node": int(event_key[0]),
+                "drone_id": int(drone_id),
+                "truck_id": event_truck,
+                "event_key": list(event_key),
+                "z1": actual_z1,
+                "z1_required": bool(state.z1_required),
+                "z1_reason": (
+                    "required by parcel-state conservation"
+                    if state.z1_required
+                    else "not required by parcel state"
+                ),
+                "z2": actual_z2,
+                "z2_required": bool(state.z2_required),
+                "z2_reason": (
+                    "required to cover the next rendezvous/depot segment"
+                    if state.z2_required
+                    else "not required: current battery covers the next segment"
+                ),
+                "battery_before_support_wh": float(
+                    actual_event.battery_before_support_wh
+                    if actual_event is not None
+                    else state.battery_before_support_wh
+                ),
+                "battery_after_support_wh": float(
+                    actual_event.battery_after_support_wh
+                    if actual_event is not None
+                    else state.battery_after_support_wh
+                ),
+                "energy_to_next_event_or_depot_wh": float(state.energy_to_next_event_or_depot_wh),
+                "handling_minutes": synchronization_handling_minutes(
+                    instance, solution, int(event_key[0]), int(drone_id), event_truck
+                ),
+            }
+        )
     return legs, event_rows, violations
 
 
@@ -493,8 +318,8 @@ def _evaluate_solution_snapshot(
                 "severity": item.severity,
                 "code": item.code,
                 "message": item.message,
-                "scope": item.scope,
-                "entity_id": item.entity_id,
+                "vehicle": item.vehicle,
+                "node": item.node,
             }
             for item in findings
         ],

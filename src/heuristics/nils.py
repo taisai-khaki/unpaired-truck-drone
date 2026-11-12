@@ -11,6 +11,12 @@ import numpy as np
 
 from ..data_models import InstanceData, SolutionData
 from ..distance_utils import euclidean_distance, manhattan_distance
+from ..drone_state import (
+    analyze_drone_states,
+    reconstruct_support_events,
+    route_intersection_events,
+    simulate_drone_states,
+)
 from ..feasibility import is_feasible
 from ..timing import (
     active_rendezvous_events,
@@ -226,26 +232,14 @@ def evaluate_solution(instance: InstanceData, solution: SolutionData) -> Tuple[f
                 served_time[to] = arrival
             truck_cost += truck.cost_per_km * dist + truck.energy_cost_per_min * travel_time
 
+    state_trace = simulate_drone_states(instance, solution)
+    solution.battery_drone = dict(state_trace.battery_after_node_wh)
+    leg_trace = {
+        (leg.drone_id, leg.leg_index): leg
+        for leg in state_trace.legs
+    }
     for d, route in solution.drone_routes.items():
         drone = instance.drones[d - 1]
-        service_nodes = {
-            node for node in route
-            if node != 0 and solution.u_drone.get((d, node), 0) >= 0.5
-        }
-        first_service_index = next((idx for idx, node in enumerate(route) if node in service_nodes), None)
-        first_reload_index = next(
-            (
-                idx for idx, node in enumerate(route)
-                if any(
-                    value > 0.5
-                    for (event_node, drone_id, _truck_id), value in solution.z1.items()
-                    if event_node == node and drone_id == d
-                )
-            ),
-            None,
-        )
-        loaded = first_service_index is None or first_reload_index is None or first_service_index < first_reload_index
-        battery = float(drone.max_battery_wh)
         for i in range(len(route) - 1):
             frm = route[i]
             to = route[i + 1]
@@ -254,24 +248,10 @@ def evaluate_solution(instance: InstanceData, solution: SolutionData) -> Tuple[f
             arrival = arrival_drone.get((d, to), 0.0)
             solution.a_drone[(d, to)] = arrival
             solution.l_drone[(d, frm)] = departure_drone.get((d, frm), arrival - travel_time)
-            power = drone.energy_per_min_when_loaded if loaded else drone.energy_per_min_when_empty
-            energy = max(0.0, float(power)) * travel_time
-            battery -= energy
-            solution.battery_drone[(d, to)] = battery
+            trace = leg_trace.get((d, i))
+            energy = trace.energy_wh if trace is not None else 0.0
             if to != 0 and solution.u_drone.get((d, to), 0) >= 0.5:
                 served_time[to] = arrival
-                loaded = False
-            if to != 0 and any(
-                value > 0.5 for (node, drone_id, _truck_id), value in solution.z1.items()
-                if node == to and drone_id == d
-            ):
-                loaded = True
-            if to != 0 and any(
-                value > 0.5 for (node, drone_id, _truck_id), value in solution.z2.items()
-                if node == to and drone_id == d
-            ):
-                battery = float(drone.max_battery_wh)
-                solution.battery_drone[(d, to)] = battery
             drone_cost += drone.cost_per_km * dist + drone.energy_cost_per_min * energy
 
     recomputed_sync = compute_synchronization_waiting(instance, solution)
@@ -565,7 +545,12 @@ def _empty_solution_clone(solution: SolutionData) -> SolutionData:
     )
 
 
-def _sync_route_assignments(solution: SolutionData, instance: InstanceData) -> None:
+def _sync_route_assignments(
+    solution: SolutionData,
+    instance: InstanceData,
+    *,
+    battery_slack_ratio: float | None = None,
+):
     """Keep arc/assignment views consistent with the current explicit routes."""
     solution.x_truck = {}
     solution.x_drone = {}
@@ -599,6 +584,13 @@ def _sync_route_assignments(solution: SolutionData, instance: InstanceData) -> N
             if j != 0:
                 solution.u_truck[(t, j)] = 1
 
+    truck_route_nodes = {
+        int(node)
+        for route in solution.truck_routes.values()
+        for node in route
+        if int(node) != 0
+    }
+
     for d, route in solution.drone_routes.items():
         rr = list(route)
         if not rr:
@@ -612,22 +604,20 @@ def _sync_route_assignments(solution: SolutionData, instance: InstanceData) -> N
             i = int(rr[idx])
             j = int(rr[idx + 1])
             solution.x_drone[(i, j, d)] = 1
-            if j != 0 and (
-                had_explicit_drone_assignments
-                and (d, j) in prior_drone_assignments
-                or not had_explicit_drone_assignments
-            ):
+            inferred_drone_service = (
+                (d, j) in prior_drone_assignments
+                if had_explicit_drone_assignments
+                else j not in truck_route_nodes
+            )
+            if j != 0 and inferred_drone_service and j not in truck_route_nodes:
                 solution.u_drone[(d, j)] = 1
 
-    truck_nodes = {
-        truck_id: {node for node in route if node != 0}
-        for truck_id, route in solution.truck_routes.items()
-    }
-    for drone_id, route in solution.drone_routes.items():
-        drone_nodes = {node for node in route if node != 0}
-        for truck_id, nodes in truck_nodes.items():
-            for node in drone_nodes & nodes:
-                solution.u_sync[(node, drone_id, truck_id)] = 1
+    state_analysis = reconstruct_support_events(
+        instance,
+        solution,
+        reserve_ratio=battery_slack_ratio,
+    )
+    return state_analysis
 
 
 def _apply_feasibility_guarded_two_opt(
@@ -655,17 +645,34 @@ def _paired_trip_feasible(
     coords: Dict[int, Tuple[float, float]],
     battery_slack_ratio: float = 0.0,
 ) -> bool:
-    drone_obj = instance.drones[drone - 1]
-    lc = _travel_time(euclidean_distance(coords[launch_node], coords[customer]), drone_obj.speed_kmph)
-    cr = _travel_time(euclidean_distance(coords[customer], coords[recovery_node]), drone_obj.speed_kmph)
-    if lc == math.inf or cr == math.inf:
+    if launch_node != 0 and launch_node == recovery_node:
         return False
-    burn = drone_obj.energy_per_min_when_loaded if drone_obj.energy_per_min_when_loaded > 0 else 20.0
-    energy = (lc + cr) * burn
-    if energy > drone_obj.max_battery_wh + 1e-9:
-        return False
-    residual = drone_obj.max_battery_wh - energy
-    return residual >= max(0.0, battery_slack_ratio) * drone_obj.max_battery_wh - 1e-9
+    route = [0]
+    if launch_node != 0:
+        route.append(int(launch_node))
+    route.append(int(customer))
+    if recovery_node != 0:
+        route.append(int(recovery_node))
+    route.append(0)
+    event_nodes = list(dict.fromkeys(
+        int(node) for node in (launch_node, recovery_node) if node != 0
+    ))
+    screening = SolutionData(
+        instance_name=instance.name,
+        status="paired_trip_state_screen",
+        objective=0.0,
+        components={},
+        truck_routes={1: [0] + event_nodes + [0]},
+        drone_routes={drone: route},
+        u_drone={(drone, customer): 1},
+    )
+    analysis = analyze_drone_states(
+        instance,
+        screening,
+        events=route_intersection_events(screening),
+        reserve_ratio=battery_slack_ratio,
+    )
+    return not analysis.issues
 
 
 def _drone_route_energy(
@@ -677,37 +684,33 @@ def _drone_route_energy(
     service_nodes: set[int] | None = None,
     z1: Dict[Tuple[int, int, int], int] | None = None,
 ) -> float:
-    drone_obj = instance.drones[drone - 1]
-    service_nodes = set(service_nodes or ())
-    z1 = z1 or {}
-    first_service = next((idx for idx, node in enumerate(route) if node in service_nodes), None)
-    first_reload = next(
-        (
-            idx for idx, node in enumerate(route)
-            if any(value > 0.5 for (event_node, event_drone, _truck), value in z1.items()
-                   if event_node == node and event_drone == drone)
-        ),
-        None,
+    normalized_route = [int(node) for node in route]
+    service_nodes = set(int(node) for node in (service_nodes or set()))
+    support_keys = [
+        (int(node), int(event_drone), int(truck_id))
+        for (node, event_drone, truck_id), value in (z1 or {}).items()
+        if value > 0.5 and int(event_drone) == drone
+    ]
+    route_positions = {node: index for index, node in enumerate(normalized_route)}
+    truck_routes: Dict[int, List[int]] = {}
+    for truck_id in sorted({key[2] for key in support_keys}):
+        event_nodes = sorted(
+            {key[0] for key in support_keys if key[2] == truck_id},
+            key=lambda node: route_positions.get(node, len(normalized_route)),
+        )
+        truck_routes[truck_id] = [0] + event_nodes + [0]
+    state_solution = SolutionData(
+        instance_name=instance.name,
+        status="drone_energy_state_screen",
+        objective=0.0,
+        components={},
+        truck_routes=truck_routes,
+        drone_routes={drone: normalized_route},
+        u_drone={(drone, node): 1 for node in service_nodes},
+        z1={key: 1 for key in support_keys},
     )
-    loaded = first_service is None or first_reload is None or first_service < first_reload
-    consumed = 0.0
-    for idx in range(len(route) - 1):
-        frm = route[idx]
-        to = route[idx + 1]
-        arc_time = _travel_time(euclidean_distance(coords[frm], coords[to]), drone_obj.speed_kmph)
-        burn = drone_obj.energy_per_min_when_loaded if loaded else drone_obj.energy_per_min_when_empty
-        if burn <= 0:
-            burn = 20.0 if loaded else 15.0
-        consumed += burn * arc_time
-        if to in service_nodes:
-            loaded = False
-        if any(
-            value > 0.5
-            for (event_node, event_drone, _truck), value in z1.items()
-            if event_node == to and event_drone == drone
-        ):
-            loaded = True
-    return consumed
+    trace = simulate_drone_states(instance, state_solution)
+    return float(sum(leg.energy_wh for leg in trace.legs if leg.drone_id == drone))
 
 
 def _route_duration_minutes(
@@ -826,21 +829,13 @@ def _quick_local_feasible(
     if drone_minutes > instance.constants.max_shift_minutes + 1e-9:
         return False
 
-    energy = _drone_route_energy(
+    state_analysis = analyze_drone_states(
         instance,
-        drone,
-        drone_route,
-        coords,
-        service_nodes={
-            node for (drone_id, node), value in candidate.u_drone.items()
-            if drone_id == drone and value >= 0.5
-        },
-        z1=candidate.z1,
+        candidate,
+        events=route_intersection_events(candidate),
+        reserve_ratio=battery_slack_ratio,
     )
-    if energy > drone_obj.max_battery_wh + 1e-9:
-        return False
-    residual_ratio = (drone_obj.max_battery_wh - energy) / max(drone_obj.max_battery_wh, 1e-9)
-    if residual_ratio + 1e-9 < max(0.0, battery_slack_ratio):
+    if state_analysis.issues:
         return False
 
     return True
@@ -1036,35 +1031,16 @@ def move_to_drone(
             truck_route = candidate.truck_routes.get(launch_truck, [0, 0])
             if truck_route.index(launch_node) >= truck_route.index(recovery_node):
                 return None
-        if launch_node != 0:
-            candidate.u_sync[(int(launch_node), drone, launch_truck)] = 1
-            candidate.z1[(int(launch_node), drone, launch_truck)] = 1
-        if recovery_node != 0:
-            candidate.u_sync[(int(recovery_node), drone, recovery_truck)] = 1
-            candidate.z2[(int(recovery_node), drone, recovery_truck)] = 1
-
-    service_nodes = {
-        node for (drone_id, node), value in candidate.u_drone.items()
-        if drone_id == drone and value >= 0.5
-    }
-    if enforce_battery:
-        coords = instance.coordinate_map()
-        total_energy = _drone_route_energy(
-            instance,
-            drone,
-            route,
-            coords,
-            service_nodes=service_nodes,
-            z1=candidate.z1,
-        )
-        max_battery = instance.drones[drone - 1].max_battery_wh
-        if total_energy > max_battery + 1e-9:
-            return None
-        residual_ratio = (max_battery - total_energy) / max(max_battery, 1e-9)
-        if residual_ratio + 1e-9 < max(0.0, battery_slack_ratio):
-            return None
     candidate.drone_routes[drone] = route
     candidate.x_drone = {}
+    state_analysis = _sync_route_assignments(
+        candidate,
+        instance,
+        battery_slack_ratio=battery_slack_ratio,
+    )
+
+    if enforce_battery and state_analysis.issues:
+        return None
 
     if validate_drone_architecture(instance, candidate, "M5"):
         return None

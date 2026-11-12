@@ -4,15 +4,26 @@ from __future__ import annotations
 from typing import Dict, Mapping, Tuple
 
 from .data_models import InstanceData, SolutionData
+from .drone_state import route_intersection_events
 
 
 def active_rendezvous_events(solution: SolutionData) -> set[Tuple[int, int, int]]:
     """Return physical truck-drone rendezvous events.
 
-    New solutions use ``u_sync`` explicitly.  The fallback preserves the
-    interpretation of legacy solution files that only contain reload or swap
-    flags.
+    Under the adopted convention, every common non-depot route visit is a
+    physical rendezvous. Explicit ``u_sync`` is checked against this derived
+    set by the feasibility validator; it does not suppress physical handling.
     """
+    route_events = route_intersection_events(solution)
+    if route_events:
+        return route_events
+    has_truck_route_nodes = any(
+        int(node) != 0
+        for route in solution.truck_routes.values()
+        for node in route
+    )
+    if has_truck_route_nodes:
+        return set()
     explicit = {
         (int(node), int(drone_id), int(truck_id))
         for (node, drone_id, truck_id), value in solution.u_sync.items()

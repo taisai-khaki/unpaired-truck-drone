@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Any
 
 from ..data_models import InstanceData, SolutionData
+from ..drone_state import analyze_drone_states, route_intersection_events, support_state_mismatches
 from ..timing import active_rendezvous_events
 
 
@@ -27,7 +28,7 @@ def sortie_associations(solution: SolutionData) -> list[dict[str, Any]]:
         ]
         for service_position, customer_id in sorted(service_positions):
             prior_positions = [position for position in event_positions if position < service_position]
-            next_positions = [position for position in event_positions if position > service_position]
+            next_positions = [position for position in event_positions if position >= service_position]
             launch_position = prior_positions[-1] if prior_positions else None
             recovery_position = next_positions[0] if next_positions else None
             launch_node = int(route[launch_position]) if launch_position is not None else 0
@@ -73,6 +74,27 @@ def validate_drone_architecture(
     pairing = {int(drone): int(truck) for drone, truck in (drone_to_truck or {}).items()}
     violations: list[str] = []
     rendezvous = active_rendezvous_events(solution)
+    route_events = route_intersection_events(solution)
+    explicit_events = {
+        (int(node), int(drone), int(truck))
+        for (node, drone, truck), value in solution.u_sync.items()
+        if value > 0.5
+    }
+
+    for node, drone_id, truck_id in sorted(route_events - explicit_events):
+        violations.append(
+            f"Drone {drone_id} and truck {truck_id} share node {node} without u_sync"
+        )
+    for node, drone_id, truck_id in sorted(explicit_events - route_events):
+        violations.append(
+            f"u_sync at node {node} for drone {drone_id} and truck {truck_id} lacks a joint route visit"
+        )
+
+    state_analysis = analyze_drone_states(instance, solution, events=route_events)
+    for issue in state_analysis.issues:
+        violations.append(issue.message)
+    for issue in support_state_mismatches(solution, state_analysis):
+        violations.append(issue.message)
 
     if architecture == "M3" and any(drone not in pairing for drone in instance.drone_ids()):
         violations.append("M3 requires a fixed truck assignment for every drone")
@@ -101,10 +123,6 @@ def validate_drone_architecture(
         if len(recovery_trucks) > 1:
             violations.append(f"Drone {drone_id} has ambiguous recovery trucks at node {recovery_node}")
 
-        if launch_node != 0 and len(launch_trucks) == 1:
-            launch_truck = launch_trucks[0]
-            if solution.z1.get((launch_node, drone_id, launch_truck), 0) < 0.5:
-                violations.append(f"Drone {drone_id} launch at node {launch_node} lacks a parcel reload")
         if recovery_node != 0 and len(recovery_trucks) == 1:
             recovery_truck = recovery_trucks[0]
             if architecture == "M3" and pairing.get(drone_id) != recovery_truck:
@@ -135,10 +153,23 @@ def validate_drone_architecture(
                 )
                 continue
             launch_node, launch_truck = next_launch
-            if launch_truck is None or solution.z1.get((launch_node, drone_id, launch_truck), 0) < 0.5:
+            if launch_truck is None:
                 violations.append(
-                    f"Drone {drone_id} has no reload at continuous rendezvous {launch_node} "
+                    f"Drone {drone_id} has no unique truck at continuous rendezvous {launch_node} "
                     f"before customer {current['customer_id']}"
                 )
 
-    return violations
+    for support_name, support_map in (("z1", solution.z1), ("z2", solution.z2)):
+        for (node, drone_id, truck_id), value in support_map.items():
+            if value <= 0.5:
+                continue
+            if (int(node), int(drone_id), int(truck_id)) not in route_events:
+                violations.append(
+                    f"Drone {drone_id} {support_name} event at node {node} is not linked to a physical rendezvous"
+                )
+            if architecture == "M3" and pairing.get(int(drone_id)) != int(truck_id):
+                violations.append(
+                    f"M3 drone {drone_id} {support_name} uses unpaired truck {truck_id}"
+                )
+
+    return list(dict.fromkeys(violations))

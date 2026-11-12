@@ -16,10 +16,12 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 import numpy as np
 
 from ..data_models import InstanceData, SolutionData
-from ..distance_utils import euclidean_distance, manhattan_distance, travel_time_from_distance
+from ..distance_utils import euclidean_distance, manhattan_distance
+from ..drone_state import route_intersection_events
 from ..feasibility import is_feasible
 from .construction import build_initial_solution
 from .local_search import apply_two_opt_to_solution
+from .architecture import sortie_associations, validate_drone_architecture
 from .nils import _eligible_customer_ids, _sync_route_assignments, evaluate_solution
 
 
@@ -86,34 +88,10 @@ def _refresh(instance: InstanceData, solution: SolutionData) -> SolutionData:
         solution.truck_routes[t] = _normal_route(solution.truck_routes.get(t, [0, 0]))
     for d in instance.drone_ids():
         solution.drone_routes[d] = _normal_route(solution.drone_routes.get(d, [0, 0]))
-    solution.z1 = {}
-    solution.z2 = {}
     _sync_route_assignments(solution, instance)
     _set_loaded_flags(instance, solution)
     solution.objective, solution.components = evaluate_solution(instance, solution)
     return solution
-
-
-def _drone_energy_ratio(instance: InstanceData, drone_id: int, route: Sequence[int]) -> float:
-    route = _normal_route(route)
-    coords = instance.coordinate_map()
-    drone = instance.drones[drone_id - 1]
-    consumed = 0.0
-    for idx in range(len(route) - 1):
-        frm = route[idx]
-        to = route[idx + 1]
-        dist = euclidean_distance(coords[frm], coords[to])
-        arc_time = travel_time_from_distance(dist, drone.speed_kmph)
-        loaded = to != 0
-        burn = drone.energy_per_min_when_loaded if loaded else drone.energy_per_min_when_empty
-        if burn <= 0:
-            burn = 20.0 if loaded else 15.0
-        consumed += burn * arc_time
-    return consumed / max(drone.max_battery_wh, 1e-9)
-
-
-def _battery_slack_ok(instance: InstanceData, drone_id: int, route: Sequence[int], beta: float) -> bool:
-    return _drone_energy_ratio(instance, drone_id, route) <= 1.0 - max(0.0, beta) + 1e-9
 
 
 def _insert_truck(
@@ -132,25 +110,145 @@ def _insert_truck(
     return candidate if is_feasible(instance, candidate) else None
 
 
-def _insert_drone(
+def _candidate_drone_insertions(
     instance: InstanceData,
     solution: SolutionData,
     customer: int,
     drone_id: int,
-    position: int,
     beta: float,
-) -> SolutionData | None:
+    *,
+    max_positions: int,
+    max_candidates: int | None,
+    deadline: float | None = None,
+) -> List[SolutionData]:
+    """Generate M5 sortie patterns with explicit, continuous rendezvous nodes."""
     if customer not in _eligible_customer_ids(instance):
-        return None
-    candidate = _remove_customer(solution, customer)
-    route = _normal_route(candidate.drone_routes.get(drone_id, [0, 0]))
-    pos = max(1, min(int(position), len(route) - 1))
-    route.insert(pos, int(customer))
-    if not _battery_slack_ok(instance, drone_id, route, beta):
-        return None
-    candidate.drone_routes[drone_id] = route
-    candidate = _refresh(instance, candidate)
-    return candidate if is_feasible(instance, candidate) else None
+        return []
+    if instance.customer_map()[customer].demand_kg > instance.drones[drone_id - 1].capacity_kg:
+        return []
+
+    base = _remove_customer(solution, customer)
+    base.u_drone[(drone_id, customer)] = 1
+    route = _normal_route(base.drone_routes.get(drone_id, [0, 0]))
+    existing_services = {
+        int(node)
+        for (assigned_drone, node), value in solution.u_drone.items()
+        if int(assigned_drone) == drone_id
+        and value >= 0.5
+        and int(node) != customer
+        and int(node) in route
+    }
+
+    coords = instance.coordinate_map()
+    endpoint_by_truck: Dict[int, List[int]] = {}
+    for truck_id in instance.truck_ids():
+        nodes = [
+            int(node)
+            for node in base.truck_routes.get(truck_id, [0, 0])
+            if int(node) not in (0, customer)
+        ]
+        nodes.sort(key=lambda node: (euclidean_distance(coords[node], coords[customer]), node))
+        endpoint_by_truck[truck_id] = nodes[: max(1, int(max_positions))]
+
+    patterns: List[Tuple[List[int], str]] = []
+    if not existing_services:
+        base.drone_routes[drone_id] = [0, 0]
+        endpoints = [
+            (node, truck_id)
+            for truck_id in instance.truck_ids()
+            for node in endpoint_by_truck[truck_id]
+        ]
+        patterns.append(([0, customer, 0], "depot-depot"))
+        for recovery_node, recovery_truck in endpoints:
+            patterns.append(([0, customer, recovery_node, 0], "depot-truck"))
+        for launch_node, launch_truck in endpoints:
+            patterns.append(([0, launch_node, customer, 0], "truck-depot"))
+        for truck_id in instance.truck_ids():
+            truck_route = base.truck_routes.get(truck_id, [0, 0])
+            truck_endpoints = endpoint_by_truck[truck_id]
+            for launch_node in truck_endpoints:
+                for recovery_node in truck_endpoints:
+                    if launch_node == recovery_node:
+                        continue
+                    if truck_route.index(launch_node) < truck_route.index(recovery_node):
+                        patterns.append(
+                            ([0, launch_node, customer, recovery_node, 0], "same-truck")
+                        )
+        for launch_node, launch_truck in endpoints:
+            for recovery_node, recovery_truck in endpoints:
+                if launch_truck == recovery_truck:
+                    continue
+                patterns.append(
+                    ([0, launch_node, customer, recovery_node, 0], "cross-truck")
+                )
+        type_order = ("depot-depot", "depot-truck", "truck-depot", "same-truck", "cross-truck")
+        grouped_patterns = {
+            pattern_type: [row for row in patterns if row[1] == pattern_type]
+            for pattern_type in type_order
+        }
+        patterns = []
+        for index in range(max((len(rows) for rows in grouped_patterns.values()), default=0)):
+            patterns.extend(
+                grouped_patterns[pattern_type][index]
+                for pattern_type in type_order
+                if index < len(grouped_patterns[pattern_type])
+            )
+    else:
+        if route[-2] == 0:
+            return []
+        last_node = int(route[-2])
+        event_keys = [
+            key for key in route_intersection_events(base)
+            if key[1] == drone_id and key[0] == last_node
+        ]
+        if len(event_keys) != 1:
+            return []
+        launch_node, launch_drone, launch_truck = event_keys[0]
+        route_positions = {int(node): index for index, node in enumerate(route) if int(node) != 0}
+        last_service_position = max(route_positions[node] for node in existing_services)
+        if route_positions[last_node] < last_service_position:
+            return []
+        launch = (int(launch_node), int(launch_truck))
+        patterns.append((route[:-1] + [customer, 0], "continuous-depot"))
+        for recovery_node, recovery_truck in [
+            (node, truck_id)
+            for truck_id in instance.truck_ids()
+            for node in endpoint_by_truck[truck_id]
+            if node not in route
+        ]:
+            if recovery_node == launch[0]:
+                continue
+            if recovery_truck == launch[1]:
+                truck_route = base.truck_routes.get(recovery_truck, [0, 0])
+                if truck_route.index(launch[0]) >= truck_route.index(recovery_node):
+                    continue
+            patterns.append(
+                (route[:-1] + [customer, recovery_node, 0], "continuous-truck")
+            )
+
+    candidates: List[SolutionData] = []
+    seen_routes: set[Tuple[int, ...]] = set()
+    for drone_route, _pattern_type in patterns:
+        if deadline is not None and time.time() >= deadline:
+            break
+        signature = tuple(drone_route)
+        if signature in seen_routes:
+            continue
+        seen_routes.add(signature)
+        if len([node for node in drone_route if node != 0]) != len(set(node for node in drone_route if node != 0)):
+            continue
+        candidate = deepcopy(base)
+        candidate.drone_routes[drone_id] = drone_route
+        candidate.u_drone[(drone_id, customer)] = 1
+        candidate = _refresh(instance, candidate)
+        if not is_feasible(instance, candidate):
+            continue
+        if validate_drone_architecture(instance, candidate, "M5"):
+            continue
+        if max_candidates is not None and len(candidates) >= max_candidates:
+            break
+        candidates.append(candidate)
+    return candidates
 
 
 def _candidate_insertions(
@@ -163,7 +261,8 @@ def _candidate_insertions(
     max_candidates: int | None = None,
 ) -> List[SolutionData]:
     coords = instance.coordinate_map()
-    candidates: List[SolutionData] = []
+    truck_candidates: List[SolutionData] = []
+    drone_candidates: List[SolutionData] = []
     for truck_id in instance.truck_ids():
         if deadline is not None and time.time() >= deadline:
             return candidates
@@ -173,22 +272,72 @@ def _candidate_insertions(
                 return candidates
             cand = _insert_truck(instance, solution, customer, truck_id, pos)
             if cand is not None:
-                candidates.append(cand)
-                if max_candidates is not None and len(candidates) >= max_candidates:
-                    return candidates
+                truck_candidates.append(cand)
     for drone_id in instance.drone_ids():
         if deadline is not None and time.time() >= deadline:
-            return candidates
-        route = solution.drone_routes.get(drone_id, [0, 0])
-        for pos in _route_positions(route, customer, coords, max_positions):
-            if deadline is not None and time.time() >= deadline:
-                return candidates
-            cand = _insert_drone(instance, solution, customer, drone_id, pos, beta)
-            if cand is not None:
-                candidates.append(cand)
-                if max_candidates is not None and len(candidates) >= max_candidates:
-                    return candidates
-    return candidates
+            break
+        remaining = None if max_candidates is None else max(1, max_candidates // 2)
+        drone_candidates.extend(
+            _candidate_drone_insertions(
+                instance,
+                solution,
+                customer,
+                drone_id,
+                beta,
+                max_positions=max_positions,
+                max_candidates=remaining,
+                deadline=deadline,
+            )
+        )
+    if max_candidates is None:
+        return truck_candidates + drone_candidates
+    truck_candidates.sort(key=lambda candidate: float(candidate.objective))
+    drone_candidates.sort(key=lambda candidate: float(candidate.objective))
+    best_by_type: Dict[str, SolutionData] = {}
+    for candidate in drone_candidates:
+        association = next(
+            (
+                row for row in sortie_associations(candidate)
+                if row["drone_id"] in instance.drone_ids()
+                and row["customer_id"] == customer
+            ),
+            None,
+        )
+        if association is None:
+            continue
+        if association["launch_node"] == 0 and association["recovery_node"] == 0:
+            sortie_type = "depot-depot"
+        elif association["launch_node"] == 0:
+            sortie_type = "depot-truck"
+        elif association["recovery_node"] == 0:
+            sortie_type = "truck-depot"
+        elif association["launch_truck"] == association["recovery_truck"]:
+            sortie_type = "same-truck"
+        else:
+            sortie_type = "cross-truck"
+        best_by_type.setdefault(sortie_type, candidate)
+    diverse = sorted(best_by_type.values(), key=lambda candidate: float(candidate.objective))
+    drone_limit = min(
+        len(drone_candidates),
+        max(len(diverse), max_candidates // 2),
+        max_candidates,
+    )
+    selected_drone = diverse[:drone_limit]
+    selected_ids = {id(candidate) for candidate in selected_drone}
+    selected_drone.extend(
+        candidate
+        for candidate in drone_candidates
+        if id(candidate) not in selected_ids and len(selected_drone) < drone_limit
+    )
+    truck_limit = max_candidates - len(selected_drone)
+    selected_truck = truck_candidates[:truck_limit]
+    if len(selected_truck) + len(selected_drone) < max_candidates:
+        remainder = [
+            candidate for candidate in drone_candidates
+            if id(candidate) not in {id(row) for row in selected_drone}
+        ]
+        selected_drone.extend(remainder[: max_candidates - len(selected_truck) - len(selected_drone)])
+    return selected_truck + selected_drone
 
 
 def _destroy_random(solution: SolutionData, customers: List[int], q: int, rng: random.Random) -> List[int]:
@@ -389,13 +538,18 @@ def _try_initial_drone_insertions(
         for drone_id in instance.drone_ids():
             if deadline is not None and time.time() >= deadline:
                 break
-            route = current.drone_routes.get(drone_id, [0, 0])
-            for pos in _route_positions(route, customer, coords, max_positions):
-                if deadline is not None and time.time() >= deadline:
-                    break
-                cand = _insert_drone(instance, current, customer, drone_id, pos, beta)
-                if cand is not None:
-                    candidates.append(cand)
+            candidates.extend(
+                _candidate_drone_insertions(
+                    instance,
+                    current,
+                    customer,
+                    drone_id,
+                    beta,
+                    max_positions=max_positions,
+                    max_candidates=max(5, int(max_positions) * 5),
+                    deadline=deadline,
+                )
+            )
         if not candidates:
             continue
         best = min(candidates, key=lambda c: c.objective)
