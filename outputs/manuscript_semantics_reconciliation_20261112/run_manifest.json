@@ -1,14 +1,74 @@
 {
   "manifest_version": 1,
-  "created_utc": "2026-11-12T22:03:26.2119908Z",
+  "created_utc": "2026-11-12T22:09:55.0108173Z",
   "execution_code_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
   "diagnostic_source_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
-  "current_head_before_artifact_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
+  "current_head_before_final_report_commit": "94130d142ba169eb5406f2360d88c4dd88cc263c",
   "target_run": {
     "method_runs": 32,
     "feasible_runs": 32,
     "architecture_validator_passes": 32,
     "route_intersection_u_sync_exact_matches": 32,
+    "rendezvous_event_accounting_by_method": {
+      "feasibility_aware_alns": {
+        "drone_wait_minutes": 0,
+        "events": 0,
+        "handling_minutes": 0,
+        "truck_wait_minutes": 0,
+        "with_reload": 0,
+        "with_swap": 0,
+        "without_reload_or_swap": 0
+      },
+      "nils": {
+        "drone_wait_minutes": 2251.10548930045,
+        "events": 36,
+        "handling_minutes": 69.5,
+        "truck_wait_minutes": 629.1136317036644,
+        "with_reload": 12,
+        "with_swap": 1,
+        "without_reload_or_swap": 24
+      },
+      "no_unpairing": {
+        "drone_wait_minutes": 3591.429678777677,
+        "events": 32,
+        "handling_minutes": 57.5,
+        "truck_wait_minutes": 14.146942086323065,
+        "with_reload": 6,
+        "with_swap": 0,
+        "without_reload_or_swap": 26
+      },
+      "paired_baseline": {
+        "drone_wait_minutes": 1375.8731552578388,
+        "events": 21,
+        "handling_minutes": 36.0,
+        "truck_wait_minutes": 66.75908902693652,
+        "with_reload": 4,
+        "with_swap": 0,
+        "without_reload_or_swap": 17
+      }
+    },
+    "sortie_types_by_method": {
+      "feasibility_aware_alns": {
+        "depot-depot": 4
+      },
+      "nils": {
+        "cross-truck": 9,
+        "depot-truck": 7,
+        "same-truck": 9,
+        "truck-depot": 5
+      },
+      "no_unpairing": {
+        "depot-depot": 1,
+        "depot-truck": 7,
+        "same-truck": 15,
+        "truck-depot": 1
+      },
+      "paired_baseline": {
+        "depot-truck": 5,
+        "same-truck": 9,
+        "truck-depot": 2
+      }
+    },
     "run_limits": {
       "nils_seconds": 120,
       "nils_max_iter": 25,
@@ -118,7 +178,7 @@
     "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\targeted_event_semantics_diagnostic_20261112"
   },
   "full_720_method_rerun_performed": false,
-  "validation": "Final pytest -q: 42 passed, 1 skipped in 51.35s; report-builder output generated and checked.",
+  "validation": "Final python -m pytest -q: 42 passed, 1 skipped in 35.87s; report builder compiled and regenerated",
   "output_file_hashes": [
     {
       "path": "outputs/manuscript_semantics_reconciliation_20261112/targeted_v2/diagnostic_checkpoint.json",
@@ -197,13 +257,13 @@
     },
     {
       "path": "outputs/manuscript_semantics_reconciliation_20261112/manuscript_semantics_reconciliation_report.json",
-      "bytes": 5092,
-      "sha256": "731b0569e0cfb5babba8bc4573922aa31a6becf6c6a4c302345cb0481dc4a844"
+      "bytes": 7130,
+      "sha256": "4bd51b540a2adfdcd190ad0b95824dc3437e4dcb5d4b2ecaabf47fc8a9e9f643"
     },
     {
       "path": "outputs/manuscript_semantics_reconciliation_20261112/manuscript_semantics_reconciliation_report.md",
-      "bytes": 1836,
-      "sha256": "e2e601950118cf025191b79f54c07dd0c77c4b5fdfeb60f7b989b25aed4fd05a"
+      "bytes": 2476,
+      "sha256": "3ac4f334eba597370a1d255233b4b8c90a07149f89017c0293567f412f18cfd3"
     }
   ],
   "source_and_input_file_hashes": [
@@ -249,8 +309,8 @@
     },
     {
       "path": "src/experiments/build_semantics_reconciliation_report.py",
-      "bytes": 10330,
-      "sha256": "1ce9c002fe93a57bd7cbe8b8db6318e90ab248e2cd5715849054b695b6850935"
+      "bytes": 13715,
+      "sha256": "c4413d1792469c0785df4e51eb795c6aa5a1bf35eb648aaa1a62d93f93852412"
     },
     {
       "path": "tests/test_drone_state_transitions.py",

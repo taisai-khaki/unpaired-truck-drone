@@ -23,6 +23,10 @@ def _json_list(value: str | None) -> list[Any]:
     return parsed if isinstance(parsed, list) else []
 
 
+def _as_bool(value: str | None) -> bool:
+    return str(value).lower() in {"true", "1", "yes"}
+
+
 def build_report(
     old_diagnostic_dir: Path,
     targeted_dir: Path,
@@ -33,6 +37,11 @@ def build_report(
     old_counterfactuals = _read_csv(old_diagnostic_dir / "support_counterfactuals.csv")
     new_methods = _read_csv(targeted_dir / "method_summary.csv")
     new_sorties = _read_csv(targeted_dir / "sorties.csv")
+    new_rendezvous = _read_csv(targeted_dir / "rendezvous_events.csv")
+    new_support_events = _read_csv(targeted_dir / "support_events.csv")
+    diagnostic = json.loads(
+        (targeted_dir / "event_semantics_diagnostic.json").read_text(encoding="utf-8")
+    )
     truck_report = json.loads(
         (truck_only_dir / "truck_only_720_backbone_report.json").read_text(encoding="utf-8")
     )
@@ -88,6 +97,37 @@ def build_report(
         row["sortie_type"] for row in new_sorties
         if row["method"] == "feasibility_aware_alns"
     )
+    sortie_types_by_method = {
+        method: dict(sorted(Counter(
+            row["sortie_type"] for row in new_sorties if row["method"] == method
+        ).items()))
+        for method in sorted({row["method"] for row in new_methods})
+    }
+    rendezvous_by_method = {}
+    for method in sorted({row["method"] for row in new_methods}):
+        events = [row for row in new_rendezvous if row["method"] == method]
+        rendezvous_by_method[method] = {
+            "events": len(events),
+            "without_reload_or_swap": sum(
+                not _as_bool(row.get("z1")) and not _as_bool(row.get("z2"))
+                for row in events
+            ),
+            "with_reload": sum(_as_bool(row.get("z1")) for row in events),
+            "with_swap": sum(_as_bool(row.get("z2")) for row in events),
+            "handling_minutes": sum(float(row.get("handling_minutes") or 0.0) for row in events),
+            "truck_wait_minutes": sum(float(row.get("truck_wait_minutes") or 0.0) for row in events),
+            "drone_wait_minutes": sum(float(row.get("drone_wait_minutes") or 0.0) for row in events),
+        }
+    support_actions_by_method = {
+        method: dict(sorted(Counter(
+            row["event_type"] for row in new_support_events if row["method"] == method
+        ).items()))
+        for method in sorted({row["method"] for row in new_methods})
+    }
+    nils_backbone_runs = [
+        row for row in new_methods
+        if row["method"] in {"paired_baseline", "no_unpairing", "nils"}
+    ]
     by_method: dict[str, dict[str, Any]] = {}
     for method in sorted({row["method"] for row in new_methods}):
         group = [row for row in new_methods if row["method"] == method]
@@ -138,6 +178,16 @@ def build_report(
                 not _json_list(row.get("architecture_violations")) for row in alns_methods
             ),
             "alns_sortie_type_distribution": dict(sorted(alns_sortie_types.items())),
+            "sortie_types_by_method": sortie_types_by_method,
+            "rendezvous_event_accounting_by_method": rendezvous_by_method,
+            "support_action_counts_by_method": support_actions_by_method,
+            "nils_family_shared_initial_backbone_reused_runs": sum(
+                _as_bool(row.get("initial_backbone_reused")) for row in nils_backbone_runs
+            ),
+            "nils_family_runs": len(nils_backbone_runs),
+            "reconstructed_u_sync_invalid_or_discontinuous_runs": diagnostic[
+                "reconstructed_u_sync_invalid_or_discontinuous_runs"
+            ],
             "by_method": by_method,
         },
         "truck_only_720_backbone_audit": truck_report,
@@ -169,6 +219,15 @@ def build_report(
         f"- NILS-family unnecessary launch reloads: {new_forced_z1}; unnecessary recovery swaps: {new_forced_z2}.",
         f"- ALNS runs pass M5 validator: {report['new_targeted_run']['alns_all_m5_validator_pass']}.",
         f"- ALNS sortie-type counts: `{json.dumps(dict(sorted(alns_sortie_types.items())), sort_keys=True)}`.",
+        f"- Reconstructed `u_sync` invalid/discontinuous runs: {diagnostic['reconstructed_u_sync_invalid_or_discontinuous_runs']}.",
+        f"- M3/M4/M5 reused the same saved initial backbone: {report['new_targeted_run']['nils_family_shared_initial_backbone_reused_runs']}/{len(nils_backbone_runs)} runs.",
+        f"- Rendezvous events without reload or swap: {sum(row['without_reload_or_swap'] for row in rendezvous_by_method.values())}/{sum(row['events'] for row in rendezvous_by_method.values())}.",
+        f"- Rendezvous handling charged: {sum(row['handling_minutes'] for row in rendezvous_by_method.values()):.3f} minutes total; readiness waiting is recorded per event in `rendezvous_events.csv`.",
+        "- Sortie-type counts by method:",
+        *[
+            f"  - {method}: `{json.dumps(counts, sort_keys=True)}`."
+            for method, counts in sortie_types_by_method.items()
+        ],
         "",
         "| Method | Runs | Feasible | Architecture pass | Mean objective | Mean CPU (s) |",
         "|---|---:|---:|---:|---:|---:|",

@@ -82,8 +82,83 @@
     "nils_family_forced_z1_count": 0,
     "nils_family_forced_z2_count": 0,
     "nils_family_runs": 24,
+    "nils_family_shared_initial_backbone_reused_runs": 24,
+    "reconstructed_u_sync_invalid_or_discontinuous_runs": 0,
+    "rendezvous_event_accounting_by_method": {
+      "feasibility_aware_alns": {
+        "drone_wait_minutes": 0,
+        "events": 0,
+        "handling_minutes": 0,
+        "truck_wait_minutes": 0,
+        "with_reload": 0,
+        "with_swap": 0,
+        "without_reload_or_swap": 0
+      },
+      "nils": {
+        "drone_wait_minutes": 2251.10548930045,
+        "events": 36,
+        "handling_minutes": 69.5,
+        "truck_wait_minutes": 629.1136317036644,
+        "with_reload": 12,
+        "with_swap": 1,
+        "without_reload_or_swap": 24
+      },
+      "no_unpairing": {
+        "drone_wait_minutes": 3591.429678777677,
+        "events": 32,
+        "handling_minutes": 57.5,
+        "truck_wait_minutes": 14.146942086323065,
+        "with_reload": 6,
+        "with_swap": 0,
+        "without_reload_or_swap": 26
+      },
+      "paired_baseline": {
+        "drone_wait_minutes": 1375.8731552578388,
+        "events": 21,
+        "handling_minutes": 36.0,
+        "truck_wait_minutes": 66.75908902693652,
+        "with_reload": 4,
+        "with_swap": 0,
+        "without_reload_or_swap": 17
+      }
+    },
     "route_intersection_u_sync_exact_matches": 32,
-    "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\manuscript_semantics_reconciliation_20261112\\targeted_v2"
+    "sortie_types_by_method": {
+      "feasibility_aware_alns": {
+        "depot-depot": 4
+      },
+      "nils": {
+        "cross-truck": 9,
+        "depot-truck": 7,
+        "same-truck": 9,
+        "truck-depot": 5
+      },
+      "no_unpairing": {
+        "depot-depot": 1,
+        "depot-truck": 7,
+        "same-truck": 15,
+        "truck-depot": 1
+      },
+      "paired_baseline": {
+        "depot-truck": 5,
+        "same-truck": 9,
+        "truck-depot": 2
+      }
+    },
+    "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\manuscript_semantics_reconciliation_20261112\\targeted_v2",
+    "support_action_counts_by_method": {
+      "feasibility_aware_alns": {},
+      "nils": {
+        "z1": 12,
+        "z2": 1
+      },
+      "no_unpairing": {
+        "z1": 6
+      },
+      "paired_baseline": {
+        "z1": 4
+      }
+    }
   },
   "purpose": "Targeted implementation validation and matched truck-only reference audit; not the full method experiment.",
   "truck_only_720_backbone_audit": {

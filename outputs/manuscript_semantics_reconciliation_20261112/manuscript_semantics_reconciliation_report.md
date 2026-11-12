@@ -18,6 +18,15 @@ The saved historical routes are held fixed; only state-required `z1`/`z2` action
 - NILS-family unnecessary launch reloads: 0; unnecessary recovery swaps: 0.
 - ALNS runs pass M5 validator: True.
 - ALNS sortie-type counts: `{"depot-depot": 4}`.
+- Reconstructed `u_sync` invalid/discontinuous runs: 0.
+- M3/M4/M5 reused the same saved initial backbone: 24/24 runs.
+- Rendezvous events without reload or swap: 67/89.
+- Rendezvous handling charged: 163.000 minutes total; readiness waiting is recorded per event in `rendezvous_events.csv`.
+- Sortie-type counts by method:
+  - feasibility_aware_alns: `{"depot-depot": 4}`.
+  - nils: `{"cross-truck": 9, "depot-truck": 7, "same-truck": 9, "truck-depot": 5}`.
+  - no_unpairing: `{"depot-depot": 1, "depot-truck": 7, "same-truck": 15, "truck-depot": 1}`.
+  - paired_baseline: `{"depot-truck": 5, "same-truck": 9, "truck-depot": 2}`.
 
 | Method | Runs | Feasible | Architecture pass | Mean objective | Mean CPU (s) |
 |---|---:|---:|---:|---:|---:|
