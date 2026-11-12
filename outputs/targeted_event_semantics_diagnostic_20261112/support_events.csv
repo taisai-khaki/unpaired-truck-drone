@@ -1,0 +1,125 @@
+instance_id,method,event_type,event_key,active_rendezvous,required_by_state,state_reason
+S0002_R07,paired_baseline,z1,"[8, 1, 1]",True,True,required by parcel conservation
+S0002_R07,paired_baseline,z2,"[8, 1, 1]",True,False,not required by battery state
+S0002_R07,paired_baseline,z2,"[15, 1, 1]",True,False,not required by battery state
+S0002_R07,no_unpairing,z1,"[2, 1, 1]",True,True,required by parcel conservation
+S0002_R07,no_unpairing,z2,"[2, 1, 1]",True,False,not required by battery state
+S0002_R07,nils,z1,"[10, 1, 1]",True,True,required by parcel conservation
+S0002_R07,nils,z1,"[12, 1, 1]",True,True,required by parcel conservation
+S0002_R07,nils,z2,"[10, 1, 1]",True,False,not required by battery state
+S0002_R07,nils,z2,"[12, 1, 1]",True,False,not required by battery state
+S0021_R06,paired_baseline,z1,"[9, 1, 1]",True,True,required by parcel conservation
+S0021_R06,paired_baseline,z2,"[9, 1, 1]",True,False,not required by battery state
+S0021_R06,nils,z1,"[1, 1, 1]",True,True,required by parcel conservation
+S0021_R06,nils,z1,"[3, 1, 2]",True,True,required by parcel conservation
+S0021_R06,nils,z1,"[13, 1, 3]",True,True,required by parcel conservation
+S0021_R06,nils,z2,"[1, 1, 1]",True,False,not required by battery state
+S0021_R06,nils,z2,"[3, 1, 2]",True,False,not required by battery state
+S0021_R06,nils,z2,"[13, 1, 3]",True,False,not required by battery state
+S0025_R02,paired_baseline,z1,"[1, 1, 1]",True,False,not required by parcel state
+S0025_R02,paired_baseline,z2,"[41, 1, 1]",True,False,not required by battery state
+S0025_R02,paired_baseline,z2,"[44, 2, 2]",True,False,not required by battery state
+S0025_R02,no_unpairing,z1,"[37, 1, 1]",True,True,required by parcel conservation
+S0025_R02,no_unpairing,z1,"[48, 2, 1]",True,True,required by parcel conservation
+S0025_R02,no_unpairing,z2,"[18, 2, 1]",True,False,not required by battery state
+S0025_R02,no_unpairing,z2,"[37, 1, 1]",True,False,not required by battery state
+S0025_R02,no_unpairing,z2,"[48, 2, 1]",True,False,not required by battery state
+S0025_R02,no_unpairing,z2,"[50, 1, 1]",True,False,not required by battery state
+S0025_R02,nils,z1,"[2, 1, 1]",True,True,required by parcel conservation
+S0025_R02,nils,z1,"[35, 2, 1]",True,True,required by parcel conservation
+S0025_R02,nils,z1,"[49, 1, 1]",True,True,required by parcel conservation
+S0025_R02,nils,z2,"[2, 1, 1]",True,False,not required by battery state
+S0025_R02,nils,z2,"[18, 2, 1]",True,False,not required by battery state
+S0025_R02,nils,z2,"[35, 2, 1]",True,False,not required by battery state
+S0025_R02,nils,z2,"[49, 1, 1]",True,False,not required by battery state
+S0041_R02,paired_baseline,z1,"[27, 1, 1]",True,True,required by parcel conservation
+S0041_R02,paired_baseline,z1,"[32, 1, 1]",True,True,required by parcel conservation
+S0041_R02,paired_baseline,z2,"[27, 1, 1]",True,False,not required by battery state
+S0041_R02,paired_baseline,z2,"[32, 1, 1]",True,False,not required by battery state
+S0041_R02,paired_baseline,z2,"[50, 1, 1]",True,False,not required by battery state
+S0041_R02,no_unpairing,z1,"[5, 2, 1]",True,True,required by parcel conservation
+S0041_R02,no_unpairing,z1,"[14, 1, 1]",True,True,required by parcel conservation
+S0041_R02,no_unpairing,z1,"[26, 1, 1]",True,True,required by parcel conservation
+S0041_R02,no_unpairing,z1,"[46, 2, 1]",True,False,not required by parcel state
+S0041_R02,no_unpairing,z2,"[5, 2, 1]",True,False,not required by battery state
+S0041_R02,no_unpairing,z2,"[14, 1, 1]",True,False,not required by battery state
+S0041_R02,no_unpairing,z2,"[15, 2, 1]",True,False,not required by battery state
+S0041_R02,no_unpairing,z2,"[26, 1, 1]",True,False,not required by battery state
+S0041_R02,nils,z1,"[2, 2, 1]",True,False,not required by parcel state
+S0041_R02,nils,z1,"[12, 1, 1]",True,True,required by parcel conservation
+S0041_R02,nils,z1,"[17, 1, 1]",True,True,required by parcel conservation
+S0041_R02,nils,z1,"[34, 2, 1]",True,True,required by parcel conservation
+S0041_R02,nils,z1,"[45, 2, 1]",True,True,required by parcel conservation
+S0041_R02,nils,z2,"[1, 1, 1]",True,False,not required by battery state
+S0041_R02,nils,z2,"[12, 1, 1]",True,False,not required by battery state
+S0041_R02,nils,z2,"[17, 1, 1]",True,False,not required by battery state
+S0041_R02,nils,z2,"[23, 2, 1]",True,False,not required by battery state
+S0041_R02,nils,z2,"[34, 2, 1]",True,False,not required by battery state
+S0041_R02,nils,z2,"[45, 2, 1]",True,False,not required by battery state
+S0048_R01,paired_baseline,z1,"[26, 2, 2]",True,False,not required by parcel state
+S0048_R01,paired_baseline,z1,"[75, 3, 3]",True,False,not required by parcel state
+S0048_R01,paired_baseline,z2,"[47, 2, 2]",True,False,not required by battery state
+S0048_R01,no_unpairing,z1,"[24, 1, 3]",True,False,not required by parcel state
+S0048_R01,no_unpairing,z1,"[26, 2, 3]",True,False,not required by parcel state
+S0048_R01,no_unpairing,z2,"[2, 2, 3]",True,False,not required by battery state
+S0048_R01,no_unpairing,z2,"[53, 3, 3]",True,False,not required by battery state
+S0048_R01,no_unpairing,z2,"[60, 1, 3]",True,False,not required by battery state
+S0048_R01,nils,z1,"[8, 1, 3]",True,True,required by parcel conservation
+S0048_R01,nils,z1,"[41, 2, 3]",True,True,required by parcel conservation
+S0048_R01,nils,z1,"[54, 3, 3]",True,True,required by parcel conservation
+S0048_R01,nils,z1,"[61, 2, 3]",True,False,not required by parcel state
+S0048_R01,nils,z2,"[8, 1, 3]",True,False,not required by battery state
+S0048_R01,nils,z2,"[41, 2, 3]",True,False,not required by battery state
+S0048_R01,nils,z2,"[51, 1, 3]",True,False,not required by battery state
+S0048_R01,nils,z2,"[54, 3, 3]",True,False,not required by battery state
+S0048_R01,nils,z2,"[64, 3, 3]",True,False,not required by battery state
+S0053_R05,paired_baseline,z1,"[16, 2, 2]",True,False,not required by parcel state
+S0053_R05,paired_baseline,z1,"[31, 3, 3]",True,False,not required by parcel state
+S0053_R05,paired_baseline,z2,"[28, 3, 3]",True,False,not required by battery state
+S0053_R05,no_unpairing,z1,"[6, 3, 3]",True,False,not required by parcel state
+S0053_R05,no_unpairing,z1,"[31, 2, 3]",True,False,not required by parcel state
+S0053_R05,no_unpairing,z1,"[36, 1, 3]",True,False,not required by parcel state
+S0053_R05,no_unpairing,z2,"[41, 1, 3]",True,False,not required by battery state
+S0053_R05,no_unpairing,z2,"[59, 2, 3]",True,False,not required by battery state
+S0053_R05,nils,z1,"[17, 2, 3]",True,False,not required by parcel state
+S0053_R05,nils,z1,"[30, 2, 3]",True,True,required by parcel conservation
+S0053_R05,nils,z1,"[36, 3, 3]",True,False,not required by parcel state
+S0053_R05,nils,z1,"[45, 1, 3]",True,True,required by parcel conservation
+S0053_R05,nils,z1,"[47, 1, 3]",True,True,required by parcel conservation
+S0053_R05,nils,z1,"[60, 1, 3]",True,False,not required by parcel state
+S0053_R05,nils,z2,"[30, 2, 3]",True,False,not required by battery state
+S0053_R05,nils,z2,"[37, 1, 1]",True,False,not required by battery state
+S0053_R05,nils,z2,"[45, 1, 3]",True,False,not required by battery state
+S0053_R05,nils,z2,"[47, 1, 3]",True,False,not required by battery state
+S0053_R05,nils,z2,"[71, 3, 3]",True,False,not required by battery state
+S0054_R04,paired_baseline,z1,"[48, 3, 3]",True,False,not required by parcel state
+S0054_R04,paired_baseline,z2,"[59, 3, 3]",True,False,not required by battery state
+S0054_R04,no_unpairing,z1,"[57, 1, 3]",True,False,not required by parcel state
+S0054_R04,no_unpairing,z1,"[61, 3, 3]",True,False,not required by parcel state
+S0054_R04,no_unpairing,z2,"[73, 3, 3]",True,False,not required by battery state
+S0054_R04,no_unpairing,z2,"[88, 2, 3]",True,False,not required by battery state
+S0054_R04,nils,z1,"[9, 3, 3]",True,True,required by parcel conservation
+S0054_R04,nils,z1,"[63, 1, 3]",True,False,not required by parcel state
+S0054_R04,nils,z1,"[74, 3, 3]",True,False,not required by parcel state
+S0054_R04,nils,z1,"[94, 1, 3]",True,True,required by parcel conservation
+S0054_R04,nils,z2,"[9, 3, 3]",True,False,not required by battery state
+S0054_R04,nils,z2,"[52, 3, 2]",True,False,not required by battery state
+S0054_R04,nils,z2,"[70, 2, 3]",True,False,not required by battery state
+S0054_R04,nils,z2,"[94, 1, 3]",True,False,not required by battery state
+S0068_R08,paired_baseline,z1,"[83, 1, 1]",True,False,not required by parcel state
+S0068_R08,paired_baseline,z2,"[96, 2, 2]",True,False,not required by battery state
+S0068_R08,paired_baseline,z2,"[100, 1, 1]",True,False,not required by battery state
+S0068_R08,no_unpairing,z1,"[20, 3, 2]",True,False,not required by parcel state
+S0068_R08,no_unpairing,z1,"[29, 2, 2]",True,False,not required by parcel state
+S0068_R08,no_unpairing,z2,"[5, 3, 2]",True,False,not required by battery state
+S0068_R08,no_unpairing,z2,"[30, 1, 2]",True,False,not required by battery state
+S0068_R08,no_unpairing,z2,"[92, 2, 2]",True,False,not required by battery state
+S0068_R08,nils,z1,"[23, 3, 2]",True,True,required by parcel conservation
+S0068_R08,nils,z1,"[54, 3, 2]",True,False,not required by parcel state
+S0068_R08,nils,z1,"[84, 3, 2]",True,True,required by parcel conservation
+S0068_R08,nils,z1,"[88, 1, 2]",True,False,not required by parcel state
+S0068_R08,nils,z2,"[23, 3, 2]",True,False,not required by battery state
+S0068_R08,nils,z2,"[60, 2, 2]",True,False,not required by battery state
+S0068_R08,nils,z2,"[84, 3, 2]",True,False,not required by battery state
+S0068_R08,nils,z2,"[89, 1, 2]",True,False,not required by battery state
+S0068_R08,nils,z2,"[99, 3, 2]",True,False,not required by battery state
