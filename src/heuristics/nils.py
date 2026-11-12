@@ -636,6 +636,25 @@ def _apply_feasibility_guarded_two_opt(
     return candidate, True
 
 
+def _apply_feasibility_guarded_perturbation(
+    instance: InstanceData,
+    solution: SolutionData,
+    architecture: str,
+    drone_to_truck: Dict[int, int] | None,
+    rng: np.random.Generator,
+) -> tuple[SolutionData, bool, bool]:
+    candidate = relocate_random_customer(solution, instance, rng)
+    if candidate is None:
+        return solution, False, False
+    _sync_route_assignments(candidate, instance)
+    candidate.objective, candidate.components = evaluate_solution(instance, candidate)
+    if not is_feasible(instance, candidate):
+        return solution, False, False
+    if validate_drone_architecture(instance, candidate, architecture, drone_to_truck):
+        return solution, False, True
+    return candidate, True, False
+
+
 def _paired_trip_feasible(
     instance: InstanceData,
     drone: int,
@@ -1829,6 +1848,7 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
         "local_search_calls": 0,
         "local_search_reverts": 0,
         "architecture_rejections": 0,
+        "perturbation_architecture_rejections": 0,
         "local_screen_rejections": 0,
         "strict_feasibility_checks": 0,
         "displacement_customers_scanned": 0,
@@ -1981,6 +2001,12 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
 
     best = _empty_solution_clone(current)
     best.status = "nils_best"
+    initial_feasible_incumbent = (
+        _empty_solution_clone(current)
+        if is_feasible(instance, current)
+        and not validate_drone_architecture(instance, current, architecture_name, pairing_map)
+        else None
+    )
     no_improve = 0
 
     def _record_risk_move(before: SolutionData, after: SolutionData, iteration: int) -> None:
@@ -2217,13 +2243,19 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                 perturb_source = best if stagnation_perturb_from_best else current
                 best_perturbed = None
                 for _ in range(stagnation_perturb_attempts):
-                    trial = relocate_random_customer(perturb_source, instance, rng)
+                    trial, accepted_perturbation, architecture_rejected = (
+                        _apply_feasibility_guarded_perturbation(
+                            instance,
+                            perturb_source,
+                            architecture_name,
+                            pairing_map,
+                            rng,
+                        )
+                    )
                     stats["perturbation_moves"] += 1
-                    if trial is None:
-                        continue
-                    trial.objective, trial.components = evaluate_solution(instance, trial)
-                    _sync_route_assignments(trial, instance)
-                    if not is_feasible(instance, trial):
+                    if architecture_rejected:
+                        stats["perturbation_architecture_rejections"] += 1
+                    if not accepted_perturbation:
                         continue
                     if best_perturbed is None or trial.objective < best_perturbed.objective:
                         best_perturbed = trial
@@ -2277,12 +2309,22 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
                         break
                     continue
         if enable_perturbation and it % 4 == 0 and not deadline_reached:
-            perturbed = relocate_random_customer(candidate, instance, rng)
+            perturbed, accepted_perturbation, architecture_rejected = (
+                _apply_feasibility_guarded_perturbation(
+                    instance,
+                    candidate,
+                    architecture_name,
+                    pairing_map,
+                    rng,
+                )
+            )
             stats["perturbation_moves"] += 1
-            perturbed.objective, perturbed.components = evaluate_solution(instance, perturbed)
-            if perturbed.objective < candidate.objective or rnd.random() < 0.2:
+            if architecture_rejected:
+                stats["perturbation_architecture_rejections"] += 1
+            if accepted_perturbation and (
+                perturbed.objective < candidate.objective or rnd.random() < 0.2
+            ):
                 candidate = perturbed
-            _sync_route_assignments(candidate, instance)
 
         if require_feasible_incumbent and not (deadline_reached and strict_checked):
             stats["strict_feasibility_checks"] += 1
@@ -2348,6 +2390,17 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
     best.status = "nils_complete"
     best.run_time_seconds = time.monotonic() - start
     _sync_route_assignments(best, instance)
+    if not is_feasible(instance, best) or validate_drone_architecture(
+        instance, best, architecture_name, pairing_map
+    ):
+        stats["final_incumbent_reverts"] = stats.get("final_incumbent_reverts", 0) + 1
+        if initial_feasible_incumbent is not None:
+            best = initial_feasible_incumbent
+            best.status = "nils_complete_reverted_to_valid_start"
+            best.run_time_seconds = time.monotonic() - start
+            best.objective, best.components = evaluate_solution(instance, best)
+        else:
+            best.status = "NILS-FINAL-VALIDATION-FAILED"
     best.components = dict(best.components)
     best.components["iterations"] = float(stats["iterations"])
     best.components["improving_moves_accepted"] = float(stats["improving_moves_accepted"])
@@ -2360,6 +2413,10 @@ o_unpairing_mode` is True, cross-truck recovery is disabled and a drone may
     best.components["local_search_calls"] = float(stats["local_search_calls"])
     best.components["local_search_reverts"] = float(stats["local_search_reverts"])
     best.components["architecture_rejections"] = float(stats["architecture_rejections"])
+    best.components["perturbation_architecture_rejections"] = float(
+        stats["perturbation_architecture_rejections"]
+    )
+    best.components["final_incumbent_reverts"] = float(stats.get("final_incumbent_reverts", 0))
     best.components["local_screen_rejections"] = float(stats["local_screen_rejections"])
     best.components["strict_feasibility_checks"] = float(stats["strict_feasibility_checks"])
     best.components["displacement_customers_scanned"] = float(stats["displacement_customers_scanned"])

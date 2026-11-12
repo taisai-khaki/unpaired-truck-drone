@@ -7,7 +7,13 @@ from src.data_models import SolutionData
 from src.feasibility import is_feasible, validate_solution
 from src.heuristics import nils as nils_module
 from src.heuristics.architecture import count_cross_truck_recoveries, validate_drone_architecture
-from src.heuristics.nils import _sync_route_assignments, default_drone_to_truck, evaluate_solution, move_to_drone
+from src.heuristics.nils import (
+    _apply_feasibility_guarded_perturbation,
+    _sync_route_assignments,
+    default_drone_to_truck,
+    evaluate_solution,
+    move_to_drone,
+)
 from src.instance_generator import InstanceGenerator
 from src.instance_generator import load_instance_json
 from src.parameters import GenerationSettings, SearchConfig
@@ -197,3 +203,43 @@ def test_post_local_search_reverts_s0045_drone_shift_failure(monkeypatch) -> Non
     assert not accepted
     assert after is feasible_before
     assert is_feasible(instance, after)
+
+
+def test_random_perturbation_reverts_m4_cross_truck_recovery(monkeypatch) -> None:
+    instance = _small_instance()
+    valid = SolutionData(
+        instance_name=instance.name,
+        status="valid_m4_before_perturbation",
+        objective=0.0,
+        components={},
+        truck_routes={1: [0, 1, 3, 0], 2: [0, 4, 0]},
+        drone_routes={1: [0, 1, 2, 3, 0]},
+        u_drone={(1, 2): 1},
+    )
+    _sync_route_assignments(valid, instance)
+    valid.objective, valid.components = evaluate_solution(instance, valid)
+    assert validate_drone_architecture(instance, valid, "M4") == []
+
+    invalid = SolutionData(
+        instance_name=instance.name,
+        status="cross_truck_after_perturbation",
+        objective=0.0,
+        components={},
+        truck_routes={1: [0, 1, 0], 2: [0, 3, 4, 0]},
+        drone_routes={1: [0, 1, 2, 3, 0]},
+        u_drone={(1, 2): 1},
+    )
+
+    monkeypatch.setattr(nils_module, "relocate_random_customer", lambda *_args: invalid)
+    result, accepted, architecture_rejected = _apply_feasibility_guarded_perturbation(
+        instance,
+        valid,
+        "M4",
+        None,
+        nils_module.np.random.default_rng(1),
+    )
+
+    assert not accepted
+    assert architecture_rejected
+    assert result is valid
+    assert validate_drone_architecture(instance, result, "M4") == []
