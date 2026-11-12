@@ -263,32 +263,38 @@ def _candidate_insertions(
     coords = instance.coordinate_map()
     truck_candidates: List[SolutionData] = []
     drone_candidates: List[SolutionData] = []
+    timed_out = False
     for truck_id in instance.truck_ids():
         if deadline is not None and time.time() >= deadline:
-            return candidates
+            timed_out = True
+            break
         route = solution.truck_routes.get(truck_id, [0, 0])
         for pos in _route_positions(route, customer, coords, max_positions):
             if deadline is not None and time.time() >= deadline:
-                return candidates
+                timed_out = True
+                break
             cand = _insert_truck(instance, solution, customer, truck_id, pos)
             if cand is not None:
                 truck_candidates.append(cand)
-    for drone_id in instance.drone_ids():
-        if deadline is not None and time.time() >= deadline:
+        if timed_out:
             break
-        remaining = None if max_candidates is None else max(1, max_candidates // 2)
-        drone_candidates.extend(
-            _candidate_drone_insertions(
-                instance,
-                solution,
-                customer,
-                drone_id,
-                beta,
-                max_positions=max_positions,
-                max_candidates=remaining,
-                deadline=deadline,
+    if not timed_out:
+        for drone_id in instance.drone_ids():
+            if deadline is not None and time.time() >= deadline:
+                break
+            remaining = None if max_candidates is None else max(1, max_candidates // 2)
+            drone_candidates.extend(
+                _candidate_drone_insertions(
+                    instance,
+                    solution,
+                    customer,
+                    drone_id,
+                    beta,
+                    max_positions=max_positions,
+                    max_candidates=remaining,
+                    deadline=deadline,
+                )
             )
-        )
     if max_candidates is None:
         return truck_candidates + drone_candidates
     truck_candidates.sort(key=lambda candidate: float(candidate.objective))
