@@ -50,6 +50,7 @@ REFERENCE_AUDIT = (
 )
 SEMANTICS_MANIFEST = REPO / "outputs/manuscript_semantics_reconciliation_20261112/run_manifest.json"
 OUTPUT = REPO / "outputs/final_m3_m4_m5_alns_720_semantics_corrected_20261113"
+SUPERSEDED_ATTEMPT = REPO / "outputs/final_m3_m4_m5_alns_720_semantics_corrected_20261112"
 METHODS = ["paired_baseline", "no_unpairing", "nils", "feasibility_aware_alns"]
 COMMON_METHODS = set(METHODS[:3])
 ARCHITECTURES = {
@@ -309,6 +310,43 @@ def _collect_input_manifest() -> list[dict[str, Any]]:
     return rows
 
 
+def _superseded_attempt_summary() -> dict[str, Any] | None:
+    if not SUPERSEDED_ATTEMPT.exists():
+        return None
+    prior_manifest = json.loads(
+        (SUPERSEDED_ATTEMPT / "run_manifest.json").read_text(encoding="utf-8")
+    )
+    paths = sorted((SUPERSEDED_ATTEMPT / "run_records").glob("*.json.gz"))
+    if prior_manifest.get("dataset_status") != "stopped_shared_backbone_integrity_violation":
+        raise RuntimeError("Unexpected status in the isolated prior runner attempt")
+    if len(paths) != 1:
+        raise RuntimeError(f"Expected one isolated stopped-attempt record, found {len(paths)}")
+    record = _read_record(paths[0])
+    row = record["row"]
+    raw_components = record["raw_returned_solution"].get("components", {})
+    if (
+        row.get("full_feasibility") is not True
+        or row.get("architecture_valid") is not True
+        or row.get("initial_backbone_argument_unchanged") is not True
+        or float(raw_components.get("initial_backbone_reused", 0.0)) < 0.5
+        or row.get("post_method_repair_applied") is not False
+        or row.get("post_method_truck_only_fallback_applied") is not False
+    ):
+        raise RuntimeError("Prior stopped-attempt record does not substantiate the runner metadata diagnosis")
+    return {
+        "output_directory": SUPERSEDED_ATTEMPT.relative_to(REPO).as_posix(),
+        "stored_method_instance_runs": 1,
+        "instance_method": f"{row['instance_id']}/{row['method_name']}",
+        "full_feasible": True,
+        "architecture_valid": True,
+        "persisted_backbone_argument_hash_unchanged": True,
+        "raw_algorithm_backbone_reused_marker": True,
+        "cause": "The first harness version checked the reuse marker after objective reevaluation had replaced search metadata.",
+        "included_in_final_dataset": False,
+        "resumed_into_final_run": False,
+    }
+
+
 def _run_pytest() -> dict[str, Any]:
     started = time.monotonic()
     result = subprocess.run(
@@ -397,6 +435,7 @@ def preflight() -> None:
     input_rows = _collect_input_manifest()
     if len(input_rows) != 720 or len({row["instance_id"] for row in input_rows}) != 720:
         raise RuntimeError("Frozen input manifest is not exactly 720 unique instances")
+    superseded_attempt = _superseded_attempt_summary()
 
     OUTPUT.mkdir(parents=True, exist_ok=False)
     for directory in (
@@ -438,6 +477,7 @@ def preflight() -> None:
         "input_instances": 720,
         "persisted_backbones": 720,
         "matched_truck_only_rows": 720,
+        "superseded_attempt_not_resumed": superseded_attempt,
         "methods": METHODS,
         "expected_method_instance_runs": EXPECTED_RUNS,
         "new_checkpoint_rows": 0,
@@ -483,6 +523,7 @@ def preflight() -> None:
             "expected_method_instance_runs": EXPECTED_RUNS,
             "methods": METHODS,
             "historical_method_rows_resumed": 0,
+            "superseded_attempt_not_resumed": superseded_attempt,
             "post_method_repair_enabled": False,
             "post_method_fallback_enabled": False,
             "legacy_study_resume_enabled": False,
@@ -1491,6 +1532,16 @@ def _write_report(manifest: dict[str, Any], audit: dict[str, Any], summaries: di
         "| Method | Feasible | Architecture-valid |",
         "|---|---:|---:|",
     ]
+    if manifest.get("superseded_attempt_not_resumed"):
+        attempt = manifest["superseded_attempt_not_resumed"]
+        lines.extend(
+            [
+                "",
+                "The earlier runner attempt was stopped after one M3 record when its reuse-marker audit read "
+                "objective-only components. The saved raw record confirms the backbone was reused and unchanged; "
+                "that isolated row was not resumed or included in this dataset.",
+            ]
+        )
     for item in audit["method_validity_by_method"]:
         lines.append(f"| {item['method_name']} | {item['feasible']}/720 | {item['architecture_valid']}/720 |")
     lines.extend(
