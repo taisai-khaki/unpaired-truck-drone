@@ -103,6 +103,13 @@ def build_report(
         ).items()))
         for method in sorted({row["method"] for row in new_methods})
     }
+    m5_cross_truck_sorties_by_method = {
+        method: sum(
+            row["method"] == method and row["sortie_type"] == "cross-truck"
+            for row in new_sorties
+        )
+        for method in ("nils", "feasibility_aware_alns")
+    }
     rendezvous_by_method = {}
     for method in sorted({row["method"] for row in new_methods}):
         events = [row for row in new_rendezvous if row["method"] == method]
@@ -114,6 +121,14 @@ def build_report(
             ),
             "with_reload": sum(_as_bool(row.get("z1")) for row in events),
             "with_swap": sum(_as_bool(row.get("z2")) for row in events),
+            "missing_required_reload": sum(
+                _as_bool(row.get("z1_required")) and not _as_bool(row.get("z1"))
+                for row in events
+            ),
+            "missing_required_swap": sum(
+                _as_bool(row.get("z2_required")) and not _as_bool(row.get("z2"))
+                for row in events
+            ),
             "handling_minutes": sum(float(row.get("handling_minutes") or 0.0) for row in events),
             "truck_wait_minutes": sum(float(row.get("truck_wait_minutes") or 0.0) for row in events),
             "drone_wait_minutes": sum(float(row.get("drone_wait_minutes") or 0.0) for row in events),
@@ -124,6 +139,57 @@ def build_report(
         ).items()))
         for method in sorted({row["method"] for row in new_methods})
     }
+    state_unnecessary_z1 = sum(
+        row["event_type"] == "z1"
+        and _as_bool(row.get("active_rendezvous"))
+        and not _as_bool(row.get("required_by_state"))
+        for row in new_support_events
+    )
+    state_unnecessary_z2 = sum(
+        row["event_type"] == "z2"
+        and _as_bool(row.get("active_rendezvous"))
+        and not _as_bool(row.get("required_by_state"))
+        for row in new_support_events
+    )
+    missing_required_z1 = sum(row["missing_required_reload"] for row in rendezvous_by_method.values())
+    missing_required_z2 = sum(row["missing_required_swap"] for row in rendezvous_by_method.values())
+    m3_pairing_violations = [
+        message
+        for row in new_methods if row["method"] == "paired_baseline"
+        for message in _json_list(row.get("architecture_violations"))
+        if "M3" in str(message) and ("unpaired" in str(message).lower() or "not paired" in str(message).lower())
+    ]
+    m4_cross_truck_violations = [
+        message
+        for row in new_methods if row["method"] == "no_unpairing"
+        for message in _json_list(row.get("architecture_violations"))
+        if "M4" in str(message)
+        and ("different truck" in str(message).lower() or "recovers with truck" in str(message).lower())
+    ]
+    backbone_input_hashes = {
+        row["instance_id"]: row["backbone_routes_sha256"]
+        for row in diagnostic["input_hashes"]
+    }
+    backbone_rows_by_instance: dict[str, list[dict[str, str]]] = {}
+    for row in nils_family_new:
+        backbone_rows_by_instance.setdefault(row["instance_id"], []).append(row)
+    backbone_equal_instances = sum(
+        len(rows) == 3
+        and all(_as_bool(row.get("initial_backbone_reused")) for row in rows)
+        and len({row.get("shared_backbone_hash") for row in rows}) == 1
+        and rows[0].get("shared_backbone_hash") == backbone_input_hashes.get(instance_id)
+        for instance_id, rows in backbone_rows_by_instance.items()
+    )
+    explicit_u_sync_events = sum(
+        len(_json_list(row.get("explicit_u_sync_events"))) for row in new_methods
+    )
+    total_z1_events = sum(int(float(row.get("num_z1_events") or 0)) for row in new_methods)
+    total_z2_events = sum(int(float(row.get("num_z2_events") or 0)) for row in new_methods)
+    total_handling_minutes = sum(row["handling_minutes"] for row in rendezvous_by_method.values())
+    total_waiting_minutes = sum(
+        row["truck_wait_minutes"] + row["drone_wait_minutes"]
+        for row in rendezvous_by_method.values()
+    )
     nils_backbone_runs = [
         row for row in new_methods
         if row["method"] in {"paired_baseline", "no_unpairing", "nils"}
@@ -140,6 +206,20 @@ def build_report(
             "forced_z1_count": sum(int(float(row.get("forced_launch_label_z1_count") or 0)) for row in group),
             "forced_z2_count": sum(int(float(row.get("forced_recovery_label_z2_count") or 0)) for row in group),
         }
+    targeted_gate_passed = (
+        len(new_methods) == 32
+        and len(new_feasible) == 32
+        and len(architecture_pass) == 32
+        and u_sync_matches == 32
+        and state_unnecessary_z1 == 0
+        and state_unnecessary_z2 == 0
+        and missing_required_z1 == 0
+        and missing_required_z2 == 0
+        and diagnostic["reconstructed_u_sync_invalid_or_discontinuous_runs"] == 0
+        and not m3_pairing_violations
+        and not m4_cross_truck_violations
+        and backbone_equal_instances == 8
+    )
 
     report = {
         "purpose": "Targeted implementation validation and matched truck-only reference audit; not the full method experiment.",
@@ -170,6 +250,16 @@ def build_report(
             "feasible_runs": len(new_feasible),
             "architecture_validator_passes": len(architecture_pass),
             "route_intersection_u_sync_exact_matches": u_sync_matches,
+            "explicit_u_sync_event_count": explicit_u_sync_events,
+            "z1_event_count": total_z1_events,
+            "z2_event_count": total_z2_events,
+            "state_unnecessary_z1_count": state_unnecessary_z1,
+            "state_unnecessary_z2_count": state_unnecessary_z2,
+            "missing_required_z1_count": missing_required_z1,
+            "missing_required_z2_count": missing_required_z2,
+            "m3_unpaired_event_violations": m3_pairing_violations,
+            "m4_cross_truck_recovery_violations": m4_cross_truck_violations,
+            "m5_cross_truck_sorties_by_method": m5_cross_truck_sorties_by_method,
             "nils_family_runs": len(nils_family_new),
             "nils_family_forced_z1_count": new_forced_z1,
             "nils_family_forced_z2_count": new_forced_z2,
@@ -180,14 +270,19 @@ def build_report(
             "alns_sortie_type_distribution": dict(sorted(alns_sortie_types.items())),
             "sortie_types_by_method": sortie_types_by_method,
             "rendezvous_event_accounting_by_method": rendezvous_by_method,
+            "total_synchronization_handling_minutes": total_handling_minutes,
+            "total_synchronization_waiting_minutes": total_waiting_minutes,
             "support_action_counts_by_method": support_actions_by_method,
             "nils_family_shared_initial_backbone_reused_runs": sum(
                 _as_bool(row.get("initial_backbone_reused")) for row in nils_backbone_runs
             ),
             "nils_family_runs": len(nils_backbone_runs),
+            "nils_family_shared_backbone_hash_equal_instances": backbone_equal_instances,
+            "nils_family_shared_backbone_hash_instances": len(backbone_rows_by_instance),
             "reconstructed_u_sync_invalid_or_discontinuous_runs": diagnostic[
                 "reconstructed_u_sync_invalid_or_discontinuous_runs"
             ],
+            "targeted_acceptance_gate_passed": targeted_gate_passed,
             "by_method": by_method,
         },
         "truck_only_720_backbone_audit": truck_report,
@@ -216,13 +311,19 @@ def build_report(
         "",
         f"- Runs: {len(new_methods)}; feasible: {len(new_feasible)}; architecture-validator passes: {len(architecture_pass)}.",
         f"- Exact route-intersection / `u_sync` match: {u_sync_matches}/{len(new_methods)}.",
+        f"- Counts across these runs: `u_sync`={explicit_u_sync_events}, `z1`={total_z1_events}, `z2`={total_z2_events}.",
+        f"- State-unnecessary support: `z1`={state_unnecessary_z1}, `z2`={state_unnecessary_z2}; missing required support: `z1`={missing_required_z1}, `z2`={missing_required_z2}.",
+        f"- M3 unpaired-event violations: {len(m3_pairing_violations)}; M4 cross-truck-recovery violations: {len(m4_cross_truck_violations)}.",
+        f"- M5 cross-truck sorties by method: `{json.dumps(m5_cross_truck_sorties_by_method, sort_keys=True)}`.",
         f"- NILS-family unnecessary launch reloads: {new_forced_z1}; unnecessary recovery swaps: {new_forced_z2}.",
         f"- ALNS runs pass M5 validator: {report['new_targeted_run']['alns_all_m5_validator_pass']}.",
         f"- ALNS sortie-type counts: `{json.dumps(dict(sorted(alns_sortie_types.items())), sort_keys=True)}`.",
         f"- Reconstructed `u_sync` invalid/discontinuous runs: {diagnostic['reconstructed_u_sync_invalid_or_discontinuous_runs']}.",
         f"- M3/M4/M5 reused the same saved initial backbone: {report['new_targeted_run']['nils_family_shared_initial_backbone_reused_runs']}/{len(nils_backbone_runs)} runs.",
+        f"- Per-instance M3/M4/M5 backbone hashes match the persisted input: {backbone_equal_instances}/{len(backbone_rows_by_instance)} instances.",
         f"- Rendezvous events without reload or swap: {sum(row['without_reload_or_swap'] for row in rendezvous_by_method.values())}/{sum(row['events'] for row in rendezvous_by_method.values())}.",
-        f"- Rendezvous handling charged: {sum(row['handling_minutes'] for row in rendezvous_by_method.values()):.3f} minutes total; readiness waiting is recorded per event in `rendezvous_events.csv`.",
+        f"- Synchronization handling/waiting: {total_handling_minutes:.3f}/{total_waiting_minutes:.3f} minutes total; event-level readiness times are in `rendezvous_events.csv`.",
+        f"- Targeted pre-rerun gate: **{'PASS' if targeted_gate_passed else 'FAIL'}**.",
         "- Sortie-type counts by method:",
         *[
             f"  - {method}: `{json.dumps(counts, sort_keys=True)}`."

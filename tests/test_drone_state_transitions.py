@@ -6,7 +6,7 @@ from copy import deepcopy
 import pytest
 
 from src.data_models import Customer, Drone, InstanceData, ProblemConstants, SolutionData, Truck
-from src.drone_state import analyze_drone_states, reconstruct_support_events
+from src.drone_state import reconstruct_support_events
 from src.feasibility import is_feasible, validate_solution
 from src.heuristics import alns as alns_module
 from src.heuristics.alns import _candidate_drone_insertions, _candidate_insertions, _refresh, _repair
@@ -61,7 +61,7 @@ def _same_truck_solution(instance: InstanceData) -> SolutionData:
     return solution
 
 
-def _truck_supported_instance() -> InstanceData:
+def _truck_supported_instance(*, max_battery_wh: float = 100.0) -> InstanceData:
     coordinates = {1: (5.0, 0.0), 2: (10.0, 0.0), 3: (6.0, 0.0), 4: (0.0, 1.0)}
     customers = [
         Customer(
@@ -82,7 +82,7 @@ def _truck_supported_instance() -> InstanceData:
         region="test",
         customers=customers,
         trucks=[Truck(1, 20.0, 30.0, 1.0), Truck(2, 20.0, 30.0, 1.0)],
-        drones=[Drone(1, 5.0, 60.0, 100.0, 5.0, 10.0, 0.01, parcel_weight_kg=1.0)],
+        drones=[Drone(1, 5.0, 60.0, max_battery_wh, 5.0, 10.0, 0.01, parcel_weight_kg=1.0)],
         priority_penalties={"high": 100.0, "medium": 3.0, "low": 1.0},
         constants=ProblemConstants(
             swap_time_s=60.0,
@@ -107,7 +107,7 @@ def _truck_supported_partial(instance: InstanceData) -> SolutionData:
     return solution
 
 
-def test_support_reconstruction_uses_parcel_and_battery_state() -> None:
+def test_both_reload_and_battery_swap_are_required_and_feasible() -> None:
     instance = _instance()
     solution = _same_truck_solution(instance)
 
@@ -124,6 +124,26 @@ def test_support_reconstruction_uses_parcel_and_battery_state() -> None:
     assert rendezvous[(3, 1, 1)].z2_required
     assert rendezvous[(3, 1, 1)].battery_before_support_wh == pytest.approx(15.0)
     assert rendezvous[(3, 1, 1)].energy_to_next_event_or_depot_wh == pytest.approx(30.0)
+    assert is_feasible(instance, solution)
+    assert validate_drone_architecture(instance, solution, "M5") == []
+
+
+def test_rendezvous_needing_neither_support_is_feasible() -> None:
+    instance = _truck_supported_instance(max_battery_wh=1000.0)
+    solution = _truck_supported_partial(instance)
+    solution.drone_routes[1] = [0, 1, 2, 3, 0]
+    _sync_route_assignments(solution, instance)
+
+    analysis = reconstruct_support_events(instance, solution)
+
+    assert not analysis.issues
+    assert solution.u_sync == {(1, 1, 1): 1, (3, 1, 1): 1}
+    assert solution.z1 == {}
+    assert solution.z2 == {}
+    assert not analysis.required_z1
+    assert not analysis.required_z2
+    assert is_feasible(instance, solution)
+    assert validate_drone_architecture(instance, solution, "M5") == []
 
 
 def test_battery_swap_without_parcel_reload_is_required() -> None:
@@ -142,6 +162,8 @@ def test_battery_swap_without_parcel_reload_is_required() -> None:
     assert rendezvous[(1, 1, 1)].z2_required
     assert not rendezvous[(3, 1, 1)].z1_required
     assert rendezvous[(3, 1, 1)].z2_required
+    assert is_feasible(instance, solution)
+    assert validate_drone_architecture(instance, solution, "M5") == []
 
 
 def test_full_battery_that_cannot_cover_next_segment_is_rejected() -> None:
@@ -183,15 +205,20 @@ def test_reload_is_required_before_service_at_the_next_rendezvous_node() -> None
         status="next_event_service_test",
         objective=0.0,
         components={},
-        truck_routes={1: [0, 3, 4, 0], 2: [0, 1, 5, 6, 0]},
-        drone_routes={1: [0, 2, 3, 4, 0]},
-        u_drone={(1, 2): 1, (1, 4): 1},
+        truck_routes={1: [0, 1, 3, 5, 0], 2: [0, 6, 0]},
+        drone_routes={1: [0, 1, 2, 3, 4, 5, 0]},
     )
+    _sync_route_assignments(solution, instance)
 
-    analysis = analyze_drone_states(instance, solution)
+    analysis = reconstruct_support_events(instance, solution)
 
+    assert not analysis.issues
     assert analysis.required_z1 == {(3, 1, 1): 1}
     assert analysis.required_z2 == {}
+    assert solution.z1 == {(3, 1, 1): 1}
+    assert solution.z2 == {}
+    assert is_feasible(instance, solution)
+    assert validate_drone_architecture(instance, solution, "M5") == []
 
 
 def test_route_intersection_requires_explicit_usync_and_physical_handling() -> None:
@@ -205,8 +232,7 @@ def test_route_intersection_requires_explicit_usync_and_physical_handling() -> N
     assert any(item.code == "SYNC_MISSING" for item in findings)
 
 
-def test_architecture_checks_apply_to_rendezvous_and_support_events() -> None:
-    instance = _instance(max_battery_wh=100.0)
+def _cross_truck_solution(instance: InstanceData) -> SolutionData:
     solution = SolutionData(
         instance_name=instance.name,
         status="cross_truck_test",
@@ -216,12 +242,52 @@ def test_architecture_checks_apply_to_rendezvous_and_support_events() -> None:
         drone_routes={1: [0, 1, 2, 3, 4, 0]},
     )
     _sync_route_assignments(solution, instance)
+    return solution
+
+
+def test_architecture_checks_apply_to_rendezvous_and_support_events() -> None:
+    instance = _instance(max_battery_wh=100.0)
+    solution = _cross_truck_solution(instance)
 
     assert validate_drone_architecture(instance, solution, "M5") == []
     assert any("recovers with truck 2" in item for item in validate_drone_architecture(instance, solution, "M4"))
-    assert any("unpaired truck 2" in item for item in validate_drone_architecture(instance, solution, "M3", {1: 1}))
-    solution.z1[(3, 1, 2)] = 1
-    assert any("M3 drone 1 z1 uses unpaired truck 2" in item for item in validate_drone_architecture(instance, solution, "M3", {1: 1}))
+    assert any(
+        "M3 drone 1 uses truck 2, not paired truck 1" in item
+        for item in validate_drone_architecture(instance, solution, "M3", {1: 1})
+    )
+
+
+def test_m3_rejects_unpaired_usync_event_independently() -> None:
+    instance = _instance(max_battery_wh=100.0)
+    solution = _cross_truck_solution(instance)
+    solution.z1 = {}
+    solution.z2 = {}
+
+    violations = validate_drone_architecture(instance, solution, "M3", {1: 1})
+
+    assert any("M3 drone 1 uses truck 2, not paired truck 1" in item for item in violations)
+
+
+def test_m3_rejects_unpaired_z1_event_independently() -> None:
+    instance = _instance(max_battery_wh=100.0)
+    solution = _cross_truck_solution(instance)
+    solution.z1 = {(3, 1, 2): 1}
+    solution.z2 = {}
+
+    violations = validate_drone_architecture(instance, solution, "M3", {1: 1})
+
+    assert any("M3 drone 1 z1 uses unpaired truck 2" in item for item in violations)
+
+
+def test_m3_rejects_unpaired_z2_event_independently() -> None:
+    instance = _instance(max_battery_wh=100.0)
+    solution = _cross_truck_solution(instance)
+    solution.z1 = {}
+    solution.z2 = {(3, 1, 2): 1}
+
+    violations = validate_drone_architecture(instance, solution, "M3", {1: 1})
+
+    assert any("M3 drone 1 z2 uses unpaired truck 2" in item for item in violations)
 
 
 def test_explicit_sync_without_joint_route_visit_is_rejected() -> None:
@@ -314,6 +380,42 @@ def test_alns_candidate_insertions_salvage_candidates_at_deadline(
     assert len(candidates) == expected_candidate_count
     if expected_candidate_count:
         assert candidates[0] is candidate
+    for returned in candidates:
+        assert is_feasible(instance, returned)
+        assert validate_drone_architecture(instance, returned, "M5") == []
+
+
+def test_alns_candidate_insertions_keep_feasible_drone_candidates_at_deadline(monkeypatch) -> None:
+    instance = _instance(max_battery_wh=1000.0)
+    solution = SolutionData(
+        instance_name=instance.name,
+        status="alns_deadline_drone_candidate_test",
+        objective=0.0,
+        components={},
+        truck_routes={1: [0, 1, 2, 3, 5, 0], 2: [0, 4, 6, 0]},
+        drone_routes={1: [0, 0]},
+    )
+    _sync_route_assignments(solution, instance)
+    clock_values = iter([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+    monkeypatch.setattr(alns_module.time, "time", lambda: next(clock_values, 1.0))
+    monkeypatch.setattr(alns_module, "_route_positions", lambda *_args: [1])
+    monkeypatch.setattr(alns_module, "_insert_truck", lambda *_args: None)
+
+    candidates = _candidate_insertions(
+        instance,
+        solution,
+        customer=2,
+        beta=0.1,
+        max_positions=1,
+        deadline=0.5,
+        max_candidates=10,
+    )
+
+    assert candidates
+    for candidate in candidates:
+        assert is_feasible(instance, candidate)
+        assert validate_drone_architecture(instance, candidate, "M5") == []
+    assert any(candidate.u_drone[(1, 2)] == 1 for candidate in candidates)
 
 
 def test_alns_repair_can_select_a_feasible_truck_supported_sortie() -> None:
@@ -341,4 +443,5 @@ def test_alns_repair_can_select_a_feasible_truck_supported_sortie() -> None:
     assert association["recovery_truck"] == 1
     assert repaired.z1 == {}
     assert repaired.z2 == {(1, 1, 1): 1, (3, 1, 1): 1}
+    assert repaired.u_sync == {(1, 1, 1): 1, (3, 1, 1): 1}
     assert validate_drone_architecture(instance, repaired, "M5") == []
