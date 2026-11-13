@@ -49,7 +49,7 @@ REFERENCE_AUDIT = (
     / "truck_only_720_backbone_audit.csv"
 )
 SEMANTICS_MANIFEST = REPO / "outputs/manuscript_semantics_reconciliation_20261112/run_manifest.json"
-OUTPUT = REPO / "outputs/final_m3_m4_m5_alns_720_semantics_corrected_20261112"
+OUTPUT = REPO / "outputs/final_m3_m4_m5_alns_720_semantics_corrected_20261113"
 METHODS = ["paired_baseline", "no_unpairing", "nils", "feasibility_aware_alns"]
 COMMON_METHODS = set(METHODS[:3])
 ARCHITECTURES = {
@@ -59,6 +59,15 @@ ARCHITECTURES = {
     "feasibility_aware_alns": "M5",
 }
 SORTIE_TYPES = ["depot-depot", "depot-truck", "truck-depot", "same-truck", "cross-truck"]
+OBJECTIVE_COMPONENTS = {
+    "truck_cost",
+    "drone_cost",
+    "tardiness_cost",
+    "waiting_cost",
+    "synchronization_wait_minutes",
+    "synchronization_waiting_minutes",
+    "waiting_sync_cost",
+}
 EXPECTED_RUNS = 720 * len(METHODS)
 RESULT_FILE = OUTPUT / "tables/raw_720_method_results.csv"
 CHECKPOINT_FILE = OUTPUT / "checkpoints/heuristic_study_rows.jsonl"
@@ -95,6 +104,19 @@ def _canonical_routes(routes: dict[int, list[int]]) -> dict[str, list[int]]:
         str(int(truck_id)): [int(node) for node in route]
         for truck_id, route in sorted(routes.items(), key=lambda item: int(item[0]))
     }
+
+
+def _combine_search_and_objective_components(
+    search_components: dict[str, Any],
+    objective_components: dict[str, Any],
+) -> dict[str, Any]:
+    return {**search_components, **objective_components}
+
+
+def _shared_backbone_reused(method: str, raw_solution: Any) -> bool:
+    return method in COMMON_METHODS and float(
+        raw_solution.components.get("initial_backbone_reused", 0.0)
+    ) >= 0.5
 
 
 def _json_safe(value: Any) -> Any:
@@ -699,9 +721,7 @@ def _decorate_row(
             "initial_backbone_routes_json": instance_row["backbone_routes_json"] if common else "",
             "matched_truck_only_objective": float(instance_row["matched_truck_only_objective"]),
             "shared_initial_backbone_supplied": common,
-            "shared_initial_backbone_reused": (
-                common and float(solution.components.get("initial_backbone_reused", 0.0)) >= 0.5
-            ),
+            "shared_initial_backbone_reused": _shared_backbone_reused(method, raw_solution),
             "alns_independent_initializer": method == "feasibility_aware_alns",
             "architecture": ARCHITECTURES[method],
             "full_feasibility": feasible,
@@ -727,7 +747,15 @@ def _decorate_row(
             ),
             "recomputed_objective": float(solution.objective),
             "recomputed_objective_components_json": json.dumps(
-                _json_safe(solution.components), sort_keys=True, allow_nan=True
+                _json_safe(
+                    {
+                        key: value
+                        for key, value in solution.components.items()
+                        if key in OBJECTIVE_COMPONENTS
+                    }
+                ),
+                sort_keys=True,
+                allow_nan=True,
             ),
             "objective_recompute_delta": float(solution.objective - raw_solution.objective),
             "post_method_repair_applied": False,
@@ -920,7 +948,11 @@ def _run_full() -> None:
             evaluated = deepcopy(raw_solution)
             raw_objective = float(raw_solution.objective)
             raw_components = deepcopy(raw_solution.components)
-            evaluated.objective, evaluated.components = evaluate_solution(instance, evaluated)
+            evaluated.objective, objective_components = evaluate_solution(instance, evaluated)
+            evaluated.components = _combine_search_and_objective_components(
+                raw_components,
+                objective_components,
+            )
             evaluated.run_time_seconds = float(runtime)
             findings = validate_solution(instance, deepcopy(evaluated))
             architecture = ARCHITECTURES[method]

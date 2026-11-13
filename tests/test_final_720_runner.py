@@ -109,3 +109,41 @@ def test_pairwise_table_uses_matched_valid_runs_and_keeps_size_group() -> None:
     assert result["wins_a_objective"] == 3
     assert result["wins_b_objective"] == 0
     assert result["ties_objective"] == 0
+
+
+def test_evaluation_component_merge_preserves_search_diagnostics() -> None:
+    search_components = {
+        "initial_backbone_reused": 1.0,
+        "iterations": 25.0,
+        "max_displacement_candidates": 100.0,
+        "truck_cost": 10.0,
+    }
+    objective_components = {"truck_cost": 12.0, "drone_cost": 3.0, "tardiness_cost": 4.0}
+
+    combined = final_run._combine_search_and_objective_components(
+        search_components,
+        objective_components,
+    )
+
+    assert combined["initial_backbone_reused"] == 1.0
+    assert combined["iterations"] == 25.0
+    assert combined["max_displacement_candidates"] == 100.0
+    assert combined["truck_cost"] == 12.0
+    assert final_run._shared_backbone_reused(
+        "paired_baseline",
+        SolutionData(
+            instance_name="I",
+            status="raw",
+            objective=0.0,
+            components=search_components,
+        ),
+    )
+    assert not final_run._shared_backbone_reused(
+        "feasibility_aware_alns",
+        SolutionData(
+            instance_name="I",
+            status="raw",
+            objective=0.0,
+            components=search_components,
+        ),
+    )
