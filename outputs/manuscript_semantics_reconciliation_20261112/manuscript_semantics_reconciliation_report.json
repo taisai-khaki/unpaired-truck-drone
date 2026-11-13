@@ -45,7 +45,7 @@
         "feasible": 8,
         "forced_z1_count": 0,
         "forced_z2_count": 0,
-        "mean_cpu_seconds": 68.44082319736481,
+        "mean_cpu_seconds": 68.20030030608177,
         "mean_objective": 52127.447404768565,
         "runs": 8
       },
@@ -54,7 +54,7 @@
         "feasible": 8,
         "forced_z1_count": 0,
         "forced_z2_count": 0,
-        "mean_cpu_seconds": 45.72419151250142,
+        "mean_cpu_seconds": 43.5582839499948,
         "mean_objective": 81056.66381571397,
         "runs": 8
       },
@@ -63,7 +63,7 @@
         "feasible": 8,
         "forced_z1_count": 0,
         "forced_z2_count": 0,
-        "mean_cpu_seconds": 21.541997725005785,
+        "mean_cpu_seconds": 20.880746500002715,
         "mean_objective": 72557.09722932288,
         "runs": 8
       },
@@ -72,16 +72,27 @@
         "feasible": 8,
         "forced_z1_count": 0,
         "forced_z2_count": 0,
-        "mean_cpu_seconds": 12.10973022500184,
+        "mean_cpu_seconds": 13.027109812501294,
         "mean_objective": 76543.67459856204,
         "runs": 8
       }
     },
+    "explicit_u_sync_event_count": 89,
     "feasible_runs": 32,
+    "m3_unpaired_event_violations": [],
+    "m4_cross_truck_recovery_violations": [],
+    "m5_cross_truck_sorties_by_method": {
+      "feasibility_aware_alns": 0,
+      "nils": 9
+    },
     "method_runs": 32,
+    "missing_required_z1_count": 0,
+    "missing_required_z2_count": 0,
     "nils_family_forced_z1_count": 0,
     "nils_family_forced_z2_count": 0,
     "nils_family_runs": 24,
+    "nils_family_shared_backbone_hash_equal_instances": 8,
+    "nils_family_shared_backbone_hash_instances": 8,
     "nils_family_shared_initial_backbone_reused_runs": 24,
     "reconstructed_u_sync_invalid_or_discontinuous_runs": 0,
     "rendezvous_event_accounting_by_method": {
@@ -89,6 +100,8 @@
         "drone_wait_minutes": 0,
         "events": 0,
         "handling_minutes": 0,
+        "missing_required_reload": 0,
+        "missing_required_swap": 0,
         "truck_wait_minutes": 0,
         "with_reload": 0,
         "with_swap": 0,
@@ -98,6 +111,8 @@
         "drone_wait_minutes": 2251.10548930045,
         "events": 36,
         "handling_minutes": 69.5,
+        "missing_required_reload": 0,
+        "missing_required_swap": 0,
         "truck_wait_minutes": 629.1136317036644,
         "with_reload": 12,
         "with_swap": 1,
@@ -107,6 +122,8 @@
         "drone_wait_minutes": 3591.429678777677,
         "events": 32,
         "handling_minutes": 57.5,
+        "missing_required_reload": 0,
+        "missing_required_swap": 0,
         "truck_wait_minutes": 14.146942086323065,
         "with_reload": 6,
         "with_swap": 0,
@@ -116,6 +133,8 @@
         "drone_wait_minutes": 1375.8731552578388,
         "events": 21,
         "handling_minutes": 36.0,
+        "missing_required_reload": 0,
+        "missing_required_swap": 0,
         "truck_wait_minutes": 66.75908902693652,
         "with_reload": 4,
         "with_swap": 0,
@@ -145,7 +164,9 @@
         "truck-depot": 2
       }
     },
-    "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\manuscript_semantics_reconciliation_20261112\\targeted_v2",
+    "source_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\manuscript_semantics_reconciliation_20261112\\targeted_final_gate_20261112",
+    "state_unnecessary_z1_count": 0,
+    "state_unnecessary_z2_count": 0,
     "support_action_counts_by_method": {
       "feasibility_aware_alns": {},
       "nils": {
@@ -158,7 +179,12 @@
       "paired_baseline": {
         "z1": 4
       }
-    }
+    },
+    "targeted_acceptance_gate_passed": true,
+    "total_synchronization_handling_minutes": 163.0,
+    "total_synchronization_waiting_minutes": 7928.42798615289,
+    "z1_event_count": 22,
+    "z2_event_count": 1
   },
   "purpose": "Targeted implementation validation and matched truck-only reference audit; not the full method experiment.",
   "truck_only_720_backbone_audit": {
