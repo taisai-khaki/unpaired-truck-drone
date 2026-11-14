@@ -1,0 +1,199 @@
+{
+  "all_outputs_have_explicit_feasibility_and_architecture_status": true,
+  "alns_architecture_valid_runs": 720,
+  "alns_cross_truck_continuity_failures": 0,
+  "alns_cross_truck_sortie_count": 0,
+  "architecture_invalid_run_count": 0,
+  "backbone_hashes_consistent_for_m3_m4_m5": true,
+  "dataset_label": "FINAL_720_SEMANTICS_CORRECTED_FROZEN",
+  "deadline_limit_audit": {
+    "by_method": {
+      "feasibility_aware_alns": {
+        "max_elapsed_seconds": 123.5407208999968,
+        "max_overrun_seconds": 3.540720899996799,
+        "mean_elapsed_seconds": 60.792978031249774,
+        "mean_iterations": 27.356944444444444,
+        "minimum_iterations": 1,
+        "overrun_rate_pct": 37.638888888888886,
+        "runs": 720,
+        "runs_over_120_seconds": 271
+      },
+      "nils": {
+        "max_elapsed_seconds": 121.30878019999363,
+        "max_overrun_seconds": 1.3087801999936346,
+        "mean_elapsed_seconds": 33.29056189083329,
+        "mean_iterations": 21.845833333333335,
+        "minimum_iterations": 5,
+        "overrun_rate_pct": 13.75,
+        "runs": 720,
+        "runs_over_120_seconds": 99
+      },
+      "no_unpairing": {
+        "max_elapsed_seconds": 120.0162135999999,
+        "max_overrun_seconds": 0.016213599999900907,
+        "mean_elapsed_seconds": 18.694823026248965,
+        "mean_iterations": 23.6125,
+        "minimum_iterations": 9,
+        "overrun_rate_pct": 0.4166666666666667,
+        "runs": 720,
+        "runs_over_120_seconds": 3
+      },
+      "paired_baseline": {
+        "max_elapsed_seconds": 81.55406689998927,
+        "max_overrun_seconds": 0.0,
+        "mean_elapsed_seconds": 10.536758946528265,
+        "mean_iterations": 23.627777777777776,
+        "minimum_iterations": 8,
+        "overrun_rate_pct": 0.0,
+        "runs": 720,
+        "runs_over_120_seconds": 0
+      }
+    },
+    "by_size_csv": "tables/time_limit_audit_by_size.csv",
+    "configured_limit_seconds": 120.0,
+    "enforcement": "soft; deadline checked at operation/iteration boundaries, not an external hard kill"
+  },
+  "duplicate_instance_method_rows": 0,
+  "four_methods_per_instance": true,
+  "invalid_run_count": 0,
+  "m3_architecture_invalid_runs": 0,
+  "m3_unpaired_event_violations": 0,
+  "m4_cross_truck_recovery_prohibited": true,
+  "m4_cross_truck_sortie_count": 0,
+  "m5_cross_truck_continuity_failures": 0,
+  "m5_cross_truck_sortie_count": 420,
+  "matched_truck_only_reference": {
+    "all_720_feasible": true,
+    "backbone_count": 720,
+    "by_size": [
+      {
+        "feasible": 230,
+        "infeasible": 0,
+        "instances": 230,
+        "mean_cpu_seconds": 0.008187743913098846,
+        "mean_objective": 6196.523223377756,
+        "median_objective": 1462.1503771069447,
+        "size": 15
+      },
+      {
+        "feasible": 210,
+        "infeasible": 0,
+        "instances": 210,
+        "mean_cpu_seconds": 0.0268238023815987,
+        "mean_objective": 123678.70793113888,
+        "median_objective": 95350.34462344868,
+        "size": 50
+      },
+      {
+        "feasible": 90,
+        "infeasible": 0,
+        "instances": 90,
+        "mean_cpu_seconds": 0.04922526333248243,
+        "mean_objective": 126827.79303159461,
+        "median_objective": 51979.79827562905,
+        "size": 75
+      },
+      {
+        "feasible": 190,
+        "infeasible": 0,
+        "instances": 190,
+        "mean_cpu_seconds": 0.07138524157727309,
+        "mean_objective": 342742.40326205327,
+        "median_objective": 324347.8626643386,
+        "size": 100
+      }
+    ],
+    "completed_count": 720,
+    "execution_commit": "fdceccd9e8cd1fe1307f59a59f90d3063cb92a5a",
+    "failures": [],
+    "feasible_count": 720,
+    "full_method_rerun_authorized_by_this_script": false,
+    "infeasible_count": 0,
+    "instance_count": 720,
+    "output_dir": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\manuscript_semantics_reconciliation_20261112\\truck_only_720",
+    "source_dir": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\full_m3_m4_m5_alns_720_frozen_20261106",
+    "status": "PASS_REFERENCE_AUDIT",
+    "total_cpu_seconds": 25.509649199753767,
+    "wall_seconds": 65.72674450001796
+  },
+  "method_instance_rows": 2880,
+  "method_validity_by_method": [
+    {
+      "architecture_valid": 720,
+      "feasible": 720,
+      "method_name": "feasibility_aware_alns",
+      "runs": 720
+    },
+    {
+      "architecture_valid": 720,
+      "feasible": 720,
+      "method_name": "nils",
+      "runs": 720
+    },
+    {
+      "architecture_valid": 720,
+      "feasible": 720,
+      "method_name": "no_unpairing",
+      "runs": 720
+    },
+    {
+      "architecture_valid": 720,
+      "feasible": 720,
+      "method_name": "paired_baseline",
+      "runs": 720
+    }
+  ],
+  "no_missing_required_support_in_valid_runs": true,
+  "no_post_method_repair": true,
+  "no_state_unnecessary_support_in_valid_runs": true,
+  "no_truck_only_fallback": true,
+  "route_intersection_usync_mismatch_runs": 0,
+  "status": "PASS_STRUCTURE_WITH_METHOD_VALIDITY_REPORTED",
+  "support_state_audit": [
+    {
+      "method_name": "paired_baseline",
+      "missing_required_z1_events": 0,
+      "missing_required_z2_events": 0,
+      "missing_z1_in_feasible_architecture_valid_runs": 0,
+      "missing_z2_in_feasible_architecture_valid_runs": 0,
+      "unnecessary_z1_events": 0,
+      "unnecessary_z1_in_feasible_architecture_valid_runs": 0,
+      "unnecessary_z2_events": 0,
+      "unnecessary_z2_in_feasible_architecture_valid_runs": 0
+    },
+    {
+      "method_name": "no_unpairing",
+      "missing_required_z1_events": 0,
+      "missing_required_z2_events": 0,
+      "missing_z1_in_feasible_architecture_valid_runs": 0,
+      "missing_z2_in_feasible_architecture_valid_runs": 0,
+      "unnecessary_z1_events": 0,
+      "unnecessary_z1_in_feasible_architecture_valid_runs": 0,
+      "unnecessary_z2_events": 0,
+      "unnecessary_z2_in_feasible_architecture_valid_runs": 0
+    },
+    {
+      "method_name": "nils",
+      "missing_required_z1_events": 0,
+      "missing_required_z2_events": 0,
+      "missing_z1_in_feasible_architecture_valid_runs": 0,
+      "missing_z2_in_feasible_architecture_valid_runs": 0,
+      "unnecessary_z1_events": 0,
+      "unnecessary_z1_in_feasible_architecture_valid_runs": 0,
+      "unnecessary_z2_events": 0,
+      "unnecessary_z2_in_feasible_architecture_valid_runs": 0
+    },
+    {
+      "method_name": "feasibility_aware_alns",
+      "missing_required_z1_events": 0,
+      "missing_required_z2_events": 0,
+      "missing_z1_in_feasible_architecture_valid_runs": 0,
+      "missing_z2_in_feasible_architecture_valid_runs": 0,
+      "unnecessary_z1_events": 0,
+      "unnecessary_z1_in_feasible_architecture_valid_runs": 0,
+      "unnecessary_z2_events": 0,
+      "unnecessary_z2_in_feasible_architecture_valid_runs": 0
+    }
+  ],
+  "unique_instances": 720
+}

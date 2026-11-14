@@ -1,0 +1,5 @@
+method_name,unnecessary_z1_events,unnecessary_z2_events,missing_required_z1_events,missing_required_z2_events,unnecessary_z1_in_feasible_architecture_valid_runs,unnecessary_z2_in_feasible_architecture_valid_runs,missing_z1_in_feasible_architecture_valid_runs,missing_z2_in_feasible_architecture_valid_runs
+paired_baseline,0,0,0,0,0,0,0,0
+no_unpairing,0,0,0,0,0,0,0,0
+nils,0,0,0,0,0,0,0,0
+feasibility_aware_alns,0,0,0,0,0,0,0,0

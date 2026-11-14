@@ -1,0 +1,9 @@
+{
+  "completed_method_instance_runs": 2880,
+  "expected_method_instance_runs": 2880,
+  "latest_instance_id": "S0072_R10",
+  "latest_method": "feasibility_aware_alns",
+  "latest_runtime_seconds": 121.22562499999185,
+  "status": "completed",
+  "updated_at_utc": "2026-11-14T02:34:31.398299+00:00"
+}

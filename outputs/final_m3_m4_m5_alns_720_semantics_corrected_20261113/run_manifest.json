@@ -1,0 +1,138 @@
+{
+  "artifact_sha256_manifest": "artifact_sha256_manifest.csv",
+  "artifact_sha256_manifest_sha256": "bf9e57f9e9775df0d38ef2447a710dfa090836017751df157b7c7b85dd4c18e6",
+  "branch": "master",
+  "completed_at_utc": "2026-11-14T02:34:31.398299+00:00",
+  "completed_method_instance_runs": 2880,
+  "configuration_sha256": "3a1162b6fba0ec62fa1c8f0b1d84e968ec24cfc46a8b6002c4f463c9394da249",
+  "created_at_utc": "2026-11-13T01:43:48.777019+00:00",
+  "dataset_status": "FINAL_720_SEMANTICS_CORRECTED_FROZEN",
+  "deadline_enforcement": "soft at operation/iteration boundaries; configured limit 120 seconds",
+  "deadline_limit_audit": {
+    "by_method": {
+      "feasibility_aware_alns": {
+        "max_elapsed_seconds": 123.5407208999968,
+        "max_overrun_seconds": 3.540720899996799,
+        "mean_elapsed_seconds": 60.792978031249774,
+        "mean_iterations": 27.356944444444444,
+        "minimum_iterations": 1,
+        "overrun_rate_pct": 37.638888888888886,
+        "runs": 720,
+        "runs_over_120_seconds": 271
+      },
+      "nils": {
+        "max_elapsed_seconds": 121.30878019999363,
+        "max_overrun_seconds": 1.3087801999936346,
+        "mean_elapsed_seconds": 33.29056189083329,
+        "mean_iterations": 21.845833333333335,
+        "minimum_iterations": 5,
+        "overrun_rate_pct": 13.75,
+        "runs": 720,
+        "runs_over_120_seconds": 99
+      },
+      "no_unpairing": {
+        "max_elapsed_seconds": 120.0162135999999,
+        "max_overrun_seconds": 0.016213599999900907,
+        "mean_elapsed_seconds": 18.694823026248965,
+        "mean_iterations": 23.6125,
+        "minimum_iterations": 9,
+        "overrun_rate_pct": 0.4166666666666667,
+        "runs": 720,
+        "runs_over_120_seconds": 3
+      },
+      "paired_baseline": {
+        "max_elapsed_seconds": 81.55406689998927,
+        "max_overrun_seconds": 0.0,
+        "mean_elapsed_seconds": 10.536758946528265,
+        "mean_iterations": 23.627777777777776,
+        "minimum_iterations": 8,
+        "overrun_rate_pct": 0.0,
+        "runs": 720,
+        "runs_over_120_seconds": 0
+      }
+    },
+    "csv": "tables/time_limit_audit_by_size.csv"
+  },
+  "dedicated_final_run_resume_enabled": true,
+  "effective_configuration": "run_config.yaml",
+  "execution_commit": "8abdc6b7d9f82a7dc630468e4f108e48f2246e84",
+  "expected_method_instance_runs": 2880,
+  "feasibility_by_method": [
+    {
+      "architecture_valid": 720,
+      "feasible": 720,
+      "method_name": "feasibility_aware_alns",
+      "runs": 720
+    },
+    {
+      "architecture_valid": 720,
+      "feasible": 720,
+      "method_name": "nils",
+      "runs": 720
+    },
+    {
+      "architecture_valid": 720,
+      "feasible": 720,
+      "method_name": "no_unpairing",
+      "runs": 720
+    },
+    {
+      "architecture_valid": 720,
+      "feasible": 720,
+      "method_name": "paired_baseline",
+      "runs": 720
+    }
+  ],
+  "finalization": "PASS_STRUCTURE_WITH_METHOD_VALIDITY_REPORTED",
+  "historical_method_rows_resumed": 0,
+  "input_instances": 720,
+  "input_manifest": "input_manifest.csv",
+  "input_manifest_sha256": "d2696d12986b71e8a2ca68aabd09dea5076095d6fb74511849b8823abab47884",
+  "last_completed_instance_id": "S0072_R10",
+  "last_completed_method": "feasibility_aware_alns",
+  "last_progress_update_utc": "2026-11-14T02:33:23.064196+00:00",
+  "legacy_study_resume_enabled": false,
+  "methods": [
+    "paired_baseline",
+    "no_unpairing",
+    "nils",
+    "feasibility_aware_alns"
+  ],
+  "no_historical_method_rows_resumed": true,
+  "output_directory": "outputs/final_m3_m4_m5_alns_720_semantics_corrected_20261113",
+  "post_method_fallback_applied": false,
+  "post_method_fallback_enabled": false,
+  "post_method_repair_applied": false,
+  "post_method_repair_enabled": false,
+  "preflight_audit": "preflight_audit.json",
+  "progress_status": "completed",
+  "python_environment": {
+    "executable": "C:\\Python314\\python.exe",
+    "numpy": "2.4.3",
+    "ortools": "9.15.6755",
+    "pandas": "2.3.3",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "pyyaml": "6.0.3",
+    "scipy": "1.17.1",
+    "version": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "raw_method_result_rows": 2880,
+  "reconciliation_report": "reconciliation_report.md",
+  "source_configuration_sha256": "3643d5e95a62d850319e627319b546b5254d3da68a7c85ac7b352caa14883924",
+  "started_at_utc": "2026-11-13T01:44:33.674830+00:00",
+  "status": "finalized",
+  "superseded_attempt_not_resumed": {
+    "architecture_valid": true,
+    "cause": "The first harness version checked the reuse marker after objective reevaluation had replaced search metadata.",
+    "full_feasible": true,
+    "included_in_final_dataset": false,
+    "instance_method": "S0001_R01/paired_baseline",
+    "output_directory": "outputs/final_m3_m4_m5_alns_720_semantics_corrected_20261112",
+    "persisted_backbone_argument_hash_unchanged": true,
+    "raw_algorithm_backbone_reused_marker": true,
+    "resumed_into_final_run": false,
+    "stored_method_instance_runs": 1
+  },
+  "upstream": "origin/codex/utdrp-latest",
+  "validation_audit": "validation_audit.json"
+}
