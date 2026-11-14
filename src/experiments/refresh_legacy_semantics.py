@@ -985,6 +985,19 @@ def small_result_rows(raw_dir: Path) -> tuple[list[dict[str, Any]], list[dict[st
             "gap_denominator_zero": zero_denominator,
             "exact_solver_status": exact_row.get("status"),
             "exact_proven_optimal": bool(exact_row.get("proven_optimal")),
+            "exact_best_bound": exact_row.get("best_bound"),
+            "exact_solver_reported_gap": exact_row.get("solver_gap"),
+            "exact_failure_reasons": "; ".join(
+                [
+                    f"{error.get('code', 'ERROR')}: {error.get('message', '')}"
+                    for error in (exact_row.get("validators") or {}).get(
+                        "feasibility_errors", []
+                    )
+                ]
+                + (exact_row.get("validators") or {}).get(
+                    "architecture_violations", []
+                )
+            ),
             "exact_solver_runtime_seconds": exact_row.get("solver_runtime_seconds"),
             "exact_wall_runtime_seconds": exact_row.get("elapsed_wall_seconds"),
             "nils_wall_runtime_seconds": sum(
@@ -1289,6 +1302,8 @@ def claim_audit_text(
         and row.get("nils_architecture_validator_pass")
         for row in small_rows
     )
+    certified_exact_count = sum(bool(row.get("exact_proven_optimal")) for row in small_rows)
+    invalid_real_rows = [row for row in real_rows if not row.get("final_valid")]
     by_key = {
         (round(float(row["lambda"]), 3), row["method"]): row for row in real_rows
     }
@@ -1426,6 +1441,7 @@ def claim_audit_text(
         "## Exact calibration",
         "",
         f"- Exact matches: {matches}/7.",
+        f"- Certified exact optima: {certified_exact_count}/7; valid exact comparisons: {len(small_valid_gaps)}/7.",
         f"- Mean percentage gap: {np.mean(small_valid_gaps):.6f}%." if small_valid_gaps else "- Mean percentage gap: unavailable; no valid exact comparisons.",
         f"- Median percentage gap: {np.median(small_valid_gaps):.6f}%." if small_valid_gaps else "- Median percentage gap: unavailable; no valid exact comparisons.",
         f"- Maximum percentage gap: {max(small_valid_gaps):.6f}%." if small_valid_gaps else "- Maximum percentage gap: unavailable; no valid exact comparisons.",
@@ -1434,12 +1450,40 @@ def claim_audit_text(
         f"- Historical claim classification for the exact-gap headline: {calibration_class}.",
         "- Historical consistency issue: the displayed Table 5 gaps (one 1.05% gap and six 0.00% gaps) average 0.15%, not the stated 0.17%. The archived 50-start file also reports a 10.599056 NILS objective at n=9, below the archived exact objective 10.697707; the paper instead prints 10.697707 for NILS at n=9.",
         "- The exact solver objective is compared against the evaluator-recomputed objective. A mismatch, a non-proven solver status, or a failed final validator leaves the exact optimum/gap blank rather than silently using a fallback.",
+        "- CBC proof limitation: the configured relative gap is 0.001. The current PuLP adapter reports zero gap and sets the best bound equal to the incumbent when PuLP returns `Optimal`; those adapter fields do not independently certify a zero-gap optimum. The refresh therefore does not treat numeric status 2 as a proof.",
+        "",
+        "## Exact-case diagnostics",
+        "",
+    ]
+    for row in small_rows:
+        if (
+            row.get("exact_proven_optimal")
+            and row.get("exact_objective_consistent_with_final_evaluator")
+            and row.get("exact_feasibility_validator_pass")
+            and row.get("exact_architecture_validator_pass")
+        ):
+            continue
+        reasons = []
+        if not row.get("exact_proven_optimal"):
+            reasons.append(f"no certified proof (solver status {row.get('exact_solver_status')})")
+        if not row.get("exact_feasibility_validator_pass") or not row.get("exact_architecture_validator_pass"):
+            reasons.append(row.get("exact_failure_reasons") or "final validator failed")
+        if row.get("exact_objective_consistent_with_final_evaluator") is False:
+            reasons.append(
+                "MILP objective/evaluator mismatch "
+                f"({row.get('exact_candidate_objective')} vs "
+                f"{row.get('exact_recomputed_candidate_objective')})"
+            )
+        lines.append(f"- n={row['size']}: " + "; ".join(reasons) + ".")
+    lines.extend(
+        [
         "",
         "## Real-data lambda results",
         "",
         "| lambda | best validated method (M1–M7) | M5 rank | M5 improvement vs M1 (%) | Z_M5 - Z_M3 | valid methods |",
         "|---:|---|---:|---:|---:|---:|",
-    ]
+        ]
+    )
     for item in lambda_summary:
         lines.append(
             f"| {item['lambda']:.3f} | {item['best_method'] or 'none'} | "
@@ -1451,9 +1495,10 @@ def claim_audit_text(
     lines.extend(
         [
             "",
+            f"- Feasibility coverage: {len(real_rows) - len(invalid_real_rows)}/{len(real_rows)} method–lambda rows pass both validators. At lambda=0.150 and 0.200, all seven methods fail feasibility because all three truck routes exceed the shift; no objective or rank is reported for those rows. The historical table also marks these two settings infeasible.",
             f"- Historical real-data ranking classification: {'UNCHANGED' if historical_rank_unchanged else 'INTERPRETATION UPDATE'}.",
             f"- Historical infeasible-domain classification at lambda=0.150 and 0.200: {'UNCHANGED' if domain_claim_unchanged else 'INTERPRETATION UPDATE'}.",
-            f"- Discrete ranking switches remain visible across lambda=0.115, 0.120, and 0.125: {scale_switches}.",
+            f"- At lambda=0.115, 0.120, and 0.125, the best method is {'not constant' if scale_switches else 'M4 in all three cases'}; do not claim a best-method switch across this local range. The M5–M3 objective difference still crosses from positive to negative by lambda=0.125, which is descriptive rather than evidence of a specific feasibility mechanism.",
             "",
             "## Claim classifications",
             "",
@@ -1462,7 +1507,7 @@ def claim_audit_text(
             f"- Table 16 best-method/rank statements: {'UNCHANGED' if historical_rank_unchanged else 'INTERPRETATION UPDATE'}.",
             f"- Table 16 lambda=0.150/0.200 domain statement: {'UNCHANGED' if domain_claim_unchanged else 'INTERPRETATION UPDATE'}.",
             "- Section 5.6 method universe: NUMERIC UPDATE ONLY; state explicitly that the real-data rank is over M1–M7. M8 ALNS was not reported in the existing lambda table and is not covered by this refresh.",
-            f"- Nonmonotone local pattern around lambda=0.115–0.125: {'UNCHANGED' if scale_switches else 'INTERPRETATION UPDATE'}; retain the discrete-feasibility explanation only if the new ranking switches remain.",
+            f"- Nonmonotone local pattern around lambda=0.115–0.125: {'INTERPRETATION UPDATE' if not scale_switches else 'NUMERIC UPDATE ONLY'}; distinguish the M5–M3 crossover from the best-method ranking and present any discrete-feasibility mechanism as an interpretation, not a demonstrated cause.",
         ]
     )
     lines.extend(
@@ -1476,19 +1521,24 @@ def claim_audit_text(
         exact_value = row.get("exact_optimum")
         nils_value = row.get("nils_objective")
         gap_value = row.get("percentage_optimality_gap")
+        action = "UPDATE" if exact_value is not None else "HOLD"
         lines.append(
-            f"- Location: Table 5, n={row['size']}; action: UPDATE; "
+            f"- Location: Table 5, n={row['size']}; action: {action}; "
             f"values: exact={exact_value}, NILS={nils_value}, gap={gap_value}%, "
-            f"exact CPU={row.get('exact_solver_runtime_seconds')} s, "
+            f"solver runtime={row.get('exact_solver_runtime_seconds')} s, "
             f"NILS 50-start wall time={row.get('nils_wall_runtime_seconds')} s."
         )
+    lines.append(
+        "- Table 5 exact optimum/gap results: HOLD. This refresh produced no certified exact comparisons; do not replace the manuscript's exact values with solver incumbents until the CBC proof, n=7/n=8 validation/objective issues, and n=9 time-limit case are resolved."
+    )
     lines.append(
         "- Location: Table 5 title and Section 5.3 calibration description; action: UPDATE; interpretation: state the archived 3-truck/3-drone fleet used by these frozen instances, not single-truck/single-drone."
     )
     for item in lambda_summary:
+        invalid_domain = item["valid_method_count"] == 0
         lines.append(
             f"- Location: Table 16, lambda={item['lambda']:.3f}; action: "
-            f"{'REMOVE' if item['valid_method_count'] == 0 and item['lambda'] not in (0.150, 0.200) else 'UPDATE'}; "
+            f"{'UPDATE infeasible-domain status; omit objective and rank' if invalid_domain else 'UPDATE numeric row'}; "
             f"values: best={item['best_method']}, best methods={item['best_methods']}, M5 rank={item['nils_rank']}, "
             f"M5 vs M1={item['nils_improvement_vs_truck_only_pct']}%, "
             f"Z_M5-Z_M3={item['z_m5_minus_z_m3']}."
@@ -1500,17 +1550,26 @@ def claim_audit_text(
 
 
 def README_text(manifest: dict[str, Any]) -> str:
+    integrity = manifest.get("integrity_check") or {}
+    integrity_findings = integrity.get("failures", [])
+    recorded_findings = integrity.get("findings", [])
     return "\n".join(
         [
             "# Final legacy-semantics refresh",
             "",
             "This directory contains only the refreshed small exact-calibration and real-data lambda evidence. The definitive 720-instance experiment is untouched.",
             "",
+            f"Run status: {manifest.get('status')}. Final integrity failures: {len(integrity_findings)}; recorded findings: {len(recorded_findings)}.",
+            "",
             "## Reproduction",
             "",
             "Run from the repository root with the recorded execution commit:",
             "",
             "    python -m src.experiments.refresh_legacy_semantics",
+            "",
+            "To regenerate derived tables, the claim audit, and the manifest from the already saved raw JSONL without rerunning any optimization, use:",
+            "",
+            "    python -m src.experiments.refresh_legacy_semantics --finalize-existing",
             "",
             "The runner checkpoints each NILS restart, exact solve, and real-data method to JSONL under raw/. It resumes completed records without replacing them. Raw solution payloads, frozen small-instance inputs, the 80-row real-data sample, and all eight scaled real-case instances are included.",
             "",
@@ -1524,6 +1583,8 @@ def README_text(manifest: dict[str, Any]) -> str:
             "",
             "The archived small-calibration inputs have 3 trucks and 3 drones, even though the latest manuscript calls the cases single-truck/single-drone. The report uses the exact frozen files associated with the historical Table 5 values and flags this manuscript wording. It does not regenerate inputs.",
             "",
+            "The exact-gap table is not paper-ready: none of the seven exact optima is certified, and n=7, n=8, and n=9 have additional validation/objective/timeout blockers. The real-data rows at lambda=0.150 and 0.200 remain infeasible under the shift constraint, matching the historical feasibility flags.",
+            "",
             "## Files",
             "",
             "- exact_calibration_results.csv: one row for each n=3,...,9, including exact/NILS objectives, gaps, runtimes, event counts, and validator results.",
@@ -1536,6 +1597,7 @@ def README_text(manifest: dict[str, Any]) -> str:
             "- inputs/: packaged frozen inputs and lambda-specific real-case instances.",
             "",
             f"Execution commit: {manifest.get('execution_commit_sha')}",
+            f"Finalization commit: {manifest.get('finalization_commit_sha', manifest.get('execution_commit_sha'))}",
             f"Branch: {manifest.get('branch')}",
             "",
         ]
@@ -1597,6 +1659,8 @@ def export_outputs(raw_dir: Path) -> tuple[list[dict[str, Any]], list[dict[str, 
 
 def final_integrity_check(raw_dir: Path, small_rows: list[dict[str, Any]], real_rows: list[dict[str, Any]]) -> dict[str, Any]:
     failures = []
+    findings = []
+    expected_infeasible_real_records = []
     exact_records = read_jsonl(raw_dir / "exact_solver_runs.jsonl")
     start_records = read_jsonl(raw_dir / "exact_nils_restarts.jsonl")
     real_records = read_jsonl(raw_dir / "real_data_lambda_methods.jsonl")
@@ -1619,14 +1683,33 @@ def final_integrity_check(raw_dir: Path, small_rows: list[dict[str, Any]], real_
         )
         real_instances[lam] = load_instance_json(path)
 
-    def verify_record(record: dict[str, Any], instance: Any, architecture: str, label: str) -> None:
+    def verify_record(
+        record: dict[str, Any],
+        instance: Any,
+        architecture: str,
+        label: str,
+        require_final_valid: bool = True,
+    ) -> None:
         if not record.get("solution"):
             return
         solution = solution_from_payload(record["solution"])
         metrics = solution_metrics(instance, solution)
         validators = validator_result(instance, solution, architecture)
-        if not validators["final_valid"]:
+        if not validators["final_valid"] and require_final_valid:
             failures.append(f"{label}: final validator failed: {validators}")
+        elif not validators["final_valid"]:
+            expected_infeasible_real_records.append(
+                {
+                    "lambda": record.get("lambda"),
+                    "method": record.get("method"),
+                    "failure_codes": sorted(
+                        {
+                            item.get("code", "UNKNOWN")
+                            for item in validators.get("feasibility_errors", [])
+                        }
+                    ),
+                }
+            )
         stored = record.get("validators") or {}
         if stored.get("final_valid") != validators["final_valid"]:
             failures.append(f"{label}: stored validator result does not reproduce")
@@ -1645,6 +1728,19 @@ def final_integrity_check(raw_dir: Path, small_rows: list[dict[str, Any]], real_
             "M5",
             f"exact:{record['instance_id']}",
         )
+        if not record.get("proven_optimal"):
+            findings.append(
+                {
+                    "kind": "exact_optimum_not_certified",
+                    "instance_id": record["instance_id"],
+                    "solver_status": record.get("status"),
+                    "solver_gap": record.get("solver_gap"),
+                }
+            )
+        if record.get("objective_consistent_with_final_evaluator") is False:
+            failures.append(
+                f"exact:{record['instance_id']}: MILP objective does not match final evaluator"
+            )
     for record in start_records:
         verify_record(
             record,
@@ -1659,6 +1755,7 @@ def final_integrity_check(raw_dir: Path, small_rows: list[dict[str, Any]], real_
             real_instances[float(record["lambda"])],
             architecture_by_method[record["method"]],
             f"real:{record['lambda']}:{record['method']}",
+            require_final_valid=False,
         )
 
     if len(small_rows) != 7:
@@ -1678,6 +1775,8 @@ def final_integrity_check(raw_dir: Path, small_rows: list[dict[str, Any]], real_
     return {
         "passed": not failures,
         "failures": failures,
+        "findings": findings,
+        "expected_infeasible_real_records": expected_infeasible_real_records,
         "small_instances": len(small_rows),
         "nils_restart_records": len(start_records),
         "exact_solver_records": len(exact_records),
@@ -1693,6 +1792,14 @@ def final_integrity_check(raw_dir: Path, small_rows: list[dict[str, Any]], real_
             for row in exact_records + start_records + real_records
         ),
     }
+
+
+def final_run_status(integrity: dict[str, Any]) -> str:
+    if not integrity.get("passed"):
+        return "complete_with_integrity_findings"
+    if integrity.get("findings") or integrity.get("expected_infeasible_real_records"):
+        return "complete_with_findings"
+    return "complete"
 
 
 def initialize_manifest(provenance: dict[str, Any], command: str) -> dict[str, Any]:
@@ -1769,6 +1876,51 @@ def initialize_manifest(provenance: dict[str, Any], command: str) -> dict[str, A
     return manifest
 
 
+def finalize_existing_run() -> int:
+    manifest_path = OUTPUT_DIR / "run_manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"No saved run manifest at {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not manifest.get("execution_commit_sha"):
+        raise RuntimeError("Saved manifest has no execution commit SHA.")
+    raw_dir = OUTPUT_DIR / "raw"
+    small_rows, summary, real_rows = export_outputs(raw_dir)
+    integrity = final_integrity_check(raw_dir, small_rows, real_rows)
+    manifest["integrity_check"] = integrity
+    manifest["status"] = final_run_status(integrity)
+    manifest["finalization_commit_sha"] = git_value("rev-parse", "HEAD")
+    manifest["finalization_command"] = (
+        "python -m src.experiments.refresh_legacy_semantics --finalize-existing"
+    )
+    manifest.setdefault("timestamps", {})["last_checkpoint_utc"] = utc_now()
+    manifest["timestamps"]["finished_utc"] = utc_now()
+    manifest.setdefault("outputs", {}).update(
+        {
+            "directory": str(OUTPUT_DIR),
+            "raw": str(raw_dir),
+            "raw_nils_restarts": str(raw_dir / "exact_nils_restarts.jsonl"),
+            "raw_exact_solver_runs": str(raw_dir / "exact_solver_runs.jsonl"),
+            "raw_real_data_runs": str(raw_dir / "real_data_lambda_methods.jsonl"),
+            "exact_calibration_results": str(OUTPUT_DIR / "exact_calibration_results.csv"),
+            "exact_calibration_summary": str(OUTPUT_DIR / "exact_calibration_summary.csv"),
+            "real_data_lambda_results": str(OUTPUT_DIR / "real_data_lambda_results.csv"),
+            "historical_reconciliation": str(OUTPUT_DIR / "historical_reconciliation.csv"),
+            "claim_audit": str(OUTPUT_DIR / "claim_audit.md"),
+            "readme": str(OUTPUT_DIR / "README.md"),
+            "manifest": str(manifest_path),
+        }
+    )
+    atomic_json(manifest_path, manifest)
+    (OUTPUT_DIR / "README.md").write_text(README_text(manifest), encoding="utf-8")
+    log_message(
+        f"Saved-run finalization complete: status={manifest['status']}, "
+        f"integrity_failures={len(integrity['failures'])}, "
+        f"exact_comparisons={summary[0]['valid_exact_comparisons']}, "
+        f"real_lambda_rows={len(real_rows)}"
+    )
+    return 0 if integrity["passed"] else 2
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1776,7 +1928,14 @@ def main() -> int:
         action="store_true",
         help="Package and validate frozen inputs without starting optimization runs.",
     )
+    parser.add_argument(
+        "--finalize-existing",
+        action="store_true",
+        help="Regenerate derived reports and manifest from saved raw runs without optimization.",
+    )
     arguments = parser.parse_args()
+    if arguments.finalize_existing:
+        return finalize_existing_run()
     raw_dir = OUTPUT_DIR / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     small_instances, real_instances, provenance = input_bundle()
@@ -1810,24 +1969,20 @@ def main() -> int:
     integrity = final_integrity_check(raw_dir, small_rows, real_rows)
     manifest["integrity_check"] = integrity
     manifest["timestamps"]["last_checkpoint_utc"] = utc_now()
-    if not integrity["passed"]:
-        manifest["status"] = "integrity_failed"
-        atomic_json(OUTPUT_DIR / "run_manifest.json", manifest)
-        raise RuntimeError("Final integrity checks failed; see run_manifest.json.")
-
-    manifest["status"] = "complete"
+    manifest["status"] = final_run_status(integrity)
     manifest["timestamps"]["finished_utc"] = utc_now()
     manifest["outputs"]["raw_nils_restarts"] = str(raw_dir / "exact_nils_restarts.jsonl")
     manifest["outputs"]["raw_exact_solver_runs"] = str(raw_dir / "exact_solver_runs.jsonl")
     manifest["outputs"]["raw_real_data_runs"] = str(raw_dir / "real_data_lambda_methods.jsonl")
+    manifest["finalization_commit_sha"] = manifest["execution_commit_sha"]
     atomic_json(OUTPUT_DIR / "run_manifest.json", manifest)
     (OUTPUT_DIR / "README.md").write_text(README_text(manifest), encoding="utf-8")
     log_message(
-        f"Refresh complete: exact matches={summary[0]['exact_matches']}, "
-        f"mean gap={summary[0]['mean_percentage_gap']}, "
+        f"Refresh finalized: status={manifest['status']}, "
+        f"exact matches={summary[0]['exact_matches']}, "
         f"real lambda rows={len(real_rows)}"
     )
-    return 0
+    return 0 if integrity["passed"] else 2
 
 
 if __name__ == "__main__":
