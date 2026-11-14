@@ -1,0 +1,2 @@
+expected_instances,completed_instances,exact_matches,maximum_percentage_gap,mean_percentage_gap,median_percentage_gap,valid_exact_comparisons,returned_nils_solutions,every_returned_nils_solution_passes_all_final_validators,gap_formula,zero_denominator_rule
+7,7,0,,,,0,7,True,100 * (Z_NILS - Z_exact) / Z_exact,0% only if both objectives are zero; otherwise percentage gap is undefined.
