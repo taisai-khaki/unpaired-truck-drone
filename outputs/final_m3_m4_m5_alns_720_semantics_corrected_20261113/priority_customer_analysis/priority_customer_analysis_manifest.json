@@ -1,0 +1,106 @@
+{
+  "algorithms_rerun": false,
+  "all_2880_runs_feasible_architecture_valid_and_unmodified": true,
+  "all_720_instances_have_exact_nils_and_alns_pair": true,
+  "all_method_solutions_used": 2880,
+  "alns_solutions_used": 720,
+  "customer_method_observations_checked": 158800,
+  "customers_with_missing_or_competing_assignments": 0,
+  "customers_without_delivery_time": 0,
+  "dataset_label": "FINAL_720_SEMANTICS_CORRECTED_FROZEN",
+  "frozen_instance_input_dir": "outputs/full_m3_m4_m5_alns_720_frozen_20261106/raw",
+  "frozen_instances_used": 720,
+  "high_priority_paired_customer_observations": 7977,
+  "historical_method_results_used": false,
+  "instances_regenerated": false,
+  "instances_without_high_priority_customers": 10,
+  "m3_solutions_used": 720,
+  "m4_solutions_used": 720,
+  "maximum_absolute_tardiness_reconstruction_difference": 0.0,
+  "nils_solutions_used": 720,
+  "numerical_tie_tolerance_minutes": 1e-06,
+  "on_time_definition": "realized delivery time <= frozen customer ub",
+  "outputs": {
+    "eligible_workload_by_design_cell.csv": {
+      "description": "Observed eligible workload range/mean by fleet cell",
+      "sha256": "8b171862b8f66946e535d666f0a053c3bd254dc2a686d9e2371fa76adba91885"
+    },
+    "high_priority_by_cell_ontime_transitions.csv": {
+      "description": "On-time transitions by exact fleet cell",
+      "sha256": "dde7494e8d0d3272349ef277282a8696db1a7bcf7cb27f047baee384d0453ff3"
+    },
+    "high_priority_by_size_ontime_transitions.csv": {
+      "description": "On-time transitions by customer count",
+      "sha256": "d887df20b2eb7dfa51b0d3e165d4f914d564dadc82c5bd1bfb6f6faa8b6fd9d2"
+    },
+    "high_priority_customer_by_eligible_workload.csv": {
+      "description": "High-priority comparison by exact eligible workload per drone",
+      "sha256": "8810430cf2a4bc210abfbf3459a8db1c05fc54d53a5f77501864069d9e520e52"
+    },
+    "high_priority_customer_by_n_drones.csv": {
+      "description": "High-priority paired comparison by exact n/drone cell",
+      "sha256": "ad78d7015bf330ee0122549bee4024b886f0b3917eda57c46a43b1dc6db91604"
+    },
+    "high_priority_customer_by_size.csv": {
+      "description": "High-priority paired comparison by customer count",
+      "sha256": "f6cf3b9bfa2620358e600e9629a48cb7362b7ea0c6197ebdb1a7478c7755a2a8"
+    },
+    "high_priority_customer_overall.csv": {
+      "description": "Pooled high-priority paired customer comparison",
+      "sha256": "d3d2e1f869242f1fc88dc0116fe2769ff28a2814ed7cc8649649a9ce89171d42"
+    },
+    "high_priority_instance_vs_customer_level.csv": {
+      "description": "Side-by-side instance and customer paired results",
+      "sha256": "890a0bf7d354908dceb5abf1cc5751b156a8dd2c869ab90fe6f8d10220341deb"
+    },
+    "high_priority_material_improvements.csv": {
+      "description": "Earlier-delivery thresholds of 1, 5, 10, and 30 minutes",
+      "sha256": "9d943bc974f29b66746d21258c1affc4e822921815ddc806c5a0a8f410e22712"
+    },
+    "high_priority_ontime_transitions.csv": {
+      "description": "Overall high-priority on-time transitions and tardiness",
+      "sha256": "d1768f8d02e28bb5b45543c2990df7e7446ec7f53f6473d96a91131d838e11ca"
+    },
+    "m3_m4_m5_priority_customer_comparison.csv": {
+      "description": "M3/M4/M5 paired high-priority customer comparison",
+      "sha256": "afab020927946dd95d9a848b75468c92df4276e3252709b1a51cd091ad03227d"
+    },
+    "priority_customer_by_class_overall.csv": {
+      "description": "Secondary earlier/tie/later counts by priority class",
+      "sha256": "979c3cb2f8dd2fe414c34fb13cbfa47fe717f0050a5b940389ca31675718f417"
+    },
+    "priority_customer_paired_raw.csv": {
+      "description": "Paired NILS/ALNS customer records for all priority classes",
+      "sha256": "ba5042b86ee234b17ba8107ffc02d43a42ad7de949d2fe40586bbe291cea4748"
+    },
+    "priority_customer_statistical_tests.csv": {
+      "description": "Instance-level paired Wilcoxon test and rank-biserial effect",
+      "sha256": "7aa35466754066dc5aa2a10d5cc1f8b784a3a8d6c02d8117af36c62f1cefb59d"
+    },
+    "priority_service_computational_tradeoff.csv": {
+      "description": "Objective, runtime, and customer-level priority comparison by size/cell",
+      "sha256": "700d6261d4b92c27287e067837ba184581fc23620f6bee3b92767733a7ab9d2a"
+    }
+  },
+  "paired_customer_records": 39700,
+  "primary_inference": "two-sided paired Wilcoxon signed-rank test on within-instance high-priority earlier-delivery-share difference",
+  "solutions_modified": false,
+  "source_dataset_path": "outputs/final_m3_m4_m5_alns_720_semantics_corrected_20261113",
+  "source_execution_commit": "8abdc6b7d9f82a7dc630468e4f108e48f2246e84",
+  "source_result_commit": "fef001ea75c82ccc04b6731334e77b5e75cc626e",
+  "statistical_unit": "instance; 720 paired units",
+  "superseded_one_record_attempt_used": false,
+  "tardiness_mismatches": 0,
+  "tardiness_reconstruction": "max(0, realized delivery time - frozen customer ub)",
+  "tardiness_reconstruction_validated": true,
+  "truck_drone_competing_assignments": 0,
+  "validation": {
+    "customer_method_observations_checked": 158800,
+    "customers_with_missing_or_competing_assignments": 0,
+    "customers_without_delivery_time": 0,
+    "maximum_absolute_tardiness_reconstruction_difference": 0.0,
+    "tardiness_mismatches": 0,
+    "truck_drone_competing_assignments": 0
+  },
+  "validity_status": "PRIORITY_CUSTOMER_ANALYSIS_VALID"
+}

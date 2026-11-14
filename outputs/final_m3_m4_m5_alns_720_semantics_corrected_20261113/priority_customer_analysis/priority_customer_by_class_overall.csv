@@ -1,0 +1,4 @@
+priority_class,paired_high_priority_customers,nils_earlier_count,nils_earlier_pct_all,nils_earlier_pct_excluding_ties,alns_earlier_count,alns_earlier_pct_all,alns_earlier_pct_excluding_ties,tie_count,tie_pct_all,mean_delivery_advantage_nils_minutes,median_delivery_advantage_nils_minutes
+high,7977,3468,43.4749905980,46.9219320796,3923,49.1788893068,53.0780679204,586,7.3461200953,-22.1355228098,0.0000000000
+low,19852,7074,35.6336893008,38.5294117647,11286,56.8506951441,61.4705882353,1492,7.5156155551,-41.6764089666,-5.0035795677
+medium,11871,4411,37.1577794626,40.3826787513,6512,54.8563726729,59.6173212487,948,7.9858478645,-39.8185472047,-3.6706844972

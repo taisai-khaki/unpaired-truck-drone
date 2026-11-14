@@ -1,0 +1,6 @@
+n,number_of_drones,observed_eligible_customers_per_drone_min,observed_eligible_customers_per_drone_mean,observed_eligible_customers_per_drone_max,distinct_observed_workloads,high_priority_customer_pairs
+15,1,4.0000000000,7.5000000000,11.0000000000,2,649
+50,1,12.0000000000,25.0000000000,38.0000000000,2,1585
+50,2,6.0000000000,12.5000000000,19.0000000000,2,518
+75,3,6.3333333333,12.5000000000,18.6666666667,2,1353
+100,3,8.3333333333,16.6666666667,25.0000000000,2,3872
