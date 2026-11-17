@@ -239,28 +239,42 @@ def random_feasible_reassignment_baseline(instance: InstanceData, config: Search
     return BaselineResult(name="random_feasible", solution=current)
 
 
-def nils_no_local_search_baseline(instance: InstanceData, config: SearchConfig) -> BaselineResult:
+def nils_no_local_search_baseline(
+    instance: InstanceData,
+    config: SearchConfig,
+    *,
+    initial_truck_routes: dict[int, list[int]] | None = None,
+    seed: int | None = None,
+) -> BaselineResult:
     sol = run_nils(
         instance,
-        seed=config.seed + 73,
+        seed=config.seed + 73 if seed is None else seed,
         max_iter=max(1, config.heuristics.max_outer_iter),
         max_no_improve=max(1, config.heuristics.max_no_improve),
         time_limit=max(10, min(180, config.heuristics.time_limit_seconds)),
         enable_local_search=False,
+        initial_truck_routes=initial_truck_routes,
         **_nils_candidate_caps(config),
     )
     sol.status = "ablation_no_local_search"
     return BaselineResult(name="nils_no_local_search", solution=sol)
 
 
-def nils_no_perturbation_baseline(instance: InstanceData, config: SearchConfig) -> BaselineResult:
+def nils_no_perturbation_baseline(
+    instance: InstanceData,
+    config: SearchConfig,
+    *,
+    initial_truck_routes: dict[int, list[int]] | None = None,
+    seed: int | None = None,
+) -> BaselineResult:
     sol = run_nils(
         instance,
-        seed=config.seed + 79,
+        seed=config.seed + 79 if seed is None else seed,
         max_iter=max(1, config.heuristics.max_outer_iter),
         max_no_improve=max(1, config.heuristics.max_no_improve),
         time_limit=max(10, min(180, config.heuristics.time_limit_seconds)),
         enable_perturbation=False,
+        initial_truck_routes=initial_truck_routes,
         **_nils_candidate_caps(config),
     )
     sol.status = "ablation_no_perturbation"

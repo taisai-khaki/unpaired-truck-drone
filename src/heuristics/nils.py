@@ -155,7 +155,8 @@ def _schedule_routes(
             drone_departures.update(departures)
             drone_readiness.update(readiness)
 
-        changed = False
+        next_truck_wait: Dict[Tuple[int, int], float] = {}
+        next_drone_wait: Dict[Tuple[int, int], float] = {}
         for node, drone_id, truck_id in active_rendezvous_events(solution):
             truck_arrival = truck_arrivals.get((truck_id, node))
             drone_arrival = drone_arrivals.get((drone_id, node))
@@ -163,14 +164,27 @@ def _schedule_routes(
                 continue
             truck_ready = truck_readiness.get((truck_id, node), truck_arrival)
             drone_ready = drone_readiness.get((drone_id, node), drone_arrival)
-            new_truck_wait = max(truck_wait.get((truck_id, node), 0.0), max(0.0, drone_ready - truck_ready))
-            new_drone_wait = max(drone_wait.get((drone_id, node), 0.0), max(0.0, truck_ready - drone_ready))
-            if new_truck_wait > truck_wait.get((truck_id, node), 0.0) + 1e-9:
-                truck_wait[(truck_id, node)] = new_truck_wait
-                changed = True
-            if new_drone_wait > drone_wait.get((drone_id, node), 0.0) + 1e-9:
-                drone_wait[(drone_id, node)] = new_drone_wait
-                changed = True
+            truck_key = (truck_id, node)
+            drone_key = (drone_id, node)
+            next_truck_wait[truck_key] = max(
+                next_truck_wait.get(truck_key, 0.0),
+                max(0.0, drone_ready - truck_ready),
+            )
+            next_drone_wait[drone_key] = max(
+                next_drone_wait.get(drone_key, 0.0),
+                max(0.0, truck_ready - drone_ready),
+            )
+        wait_keys_truck = set(truck_wait) | set(next_truck_wait)
+        wait_keys_drone = set(drone_wait) | set(next_drone_wait)
+        changed = any(
+            abs(truck_wait.get(key, 0.0) - next_truck_wait.get(key, 0.0)) > 1e-9
+            for key in wait_keys_truck
+        ) or any(
+            abs(drone_wait.get(key, 0.0) - next_drone_wait.get(key, 0.0)) > 1e-9
+            for key in wait_keys_drone
+        )
+        truck_wait = next_truck_wait
+        drone_wait = next_drone_wait
         if not changed:
             break
 

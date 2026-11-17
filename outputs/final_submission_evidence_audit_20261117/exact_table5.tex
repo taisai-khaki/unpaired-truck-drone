@@ -1,0 +1,20 @@
+\begin{table}[htbp]
+\centering
+\caption{MILP incumbent audit on the seven saved small instances; no row is labeled optimal unless independently certified.}
+\label{tab:exact_milp_audit}
+\small
+\begin{tabular}{rllllr}
+\toprule
+$n$ & CBC incumbent & Evaluator objective & Best feasible NILS & CBC status & CPU (s) \\
+\midrule
+3 & 27.0783 & 27.0783 & 27.0783 & Optimal solution found & 14.4 \\
+4 & 46.2491 & 46.2491 & 44.1406 & Stopped on time limit & 119.6 \\
+5 & 42.7323 & 42.7323 & 39.8599 & Stopped on time limit & 118.2 \\
+6 & 56.5894 & 56.5894 & 45.4320 & Stopped on time limit & 117.7 \\
+7 & 47.4272 & 47.4272 & 48.6932 & Stopped on time limit & 115.5 \\
+8 & 59.4185 & 59.4185 & 49.9081 & Stopped on time limit & 114.2 \\
+9 & -- & -- & 45.1393 & No feasible incumbent & 107.6 \\
+\bottomrule
+\end{tabular}
+\begin{flushleft}\footnotesize CBC incumbents are not proven optima unless a native optimal termination, matching primal/dual bound, feasible extracted solution, and independent objective reconciliation are all verified.\end{flushleft}
+\end{table}

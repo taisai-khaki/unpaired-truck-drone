@@ -1,0 +1,36 @@
+{
+  "eligibility_range": [
+    0.24,
+    0.76
+  ],
+  "full_2160_runs_started": false,
+  "gate_passed": false,
+  "initial_incumbent_reproducibility": {
+    "checks": 8,
+    "expected_checks": 8,
+    "passed": true,
+    "passed_checks": 8
+  },
+  "method_counts": {
+    "M2": 4,
+    "M6": 4,
+    "M7": 4
+  },
+  "non_depot_rendezvous_opportunity": true,
+  "reason_full_run_not_started": "invalid diagnostic result(s): M2 S0061_R09; corrected-evaluator revalidation changes 227 frozen M3/M4/M5/M8 objective records",
+  "reference_integrity_passed": false,
+  "runs_completed": 12,
+  "runs_expected": 12,
+  "sample_instances": [
+    "S0001_R01",
+    "S0034_R01",
+    "S0061_R09",
+    "S0026_R08"
+  ],
+  "sample_sizes": [
+    15,
+    50,
+    100
+  ],
+  "status": "BLOCKED"
+}

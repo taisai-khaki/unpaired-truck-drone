@@ -1,0 +1,17 @@
+{
+  "bootstrap_replicates": 10000,
+  "ci_95_percentile_percentage_points": [
+    3.853152649075127,
+    6.351315210345369
+  ],
+  "clusters_with_high_priority_customers": 710,
+  "comparison": "M5 NILS minus M8 ALNS high-priority on-time rate",
+  "customer_records_treated_as_independent": false,
+  "estimand": "pooled customer-level rate difference with instances resampled as paired clusters",
+  "estimate_percentage_points": 5.077096652877022,
+  "instance_clusters_resampled": 720,
+  "m5_on_time_customers": 2869,
+  "m8_on_time_customers": 2464,
+  "matched_high_priority_customers": 7977,
+  "random_seed": 20261117
+}

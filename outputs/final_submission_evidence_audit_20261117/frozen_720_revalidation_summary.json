@@ -1,0 +1,57 @@
+{
+  "corrected_evaluator_changed_objectives": 227,
+  "elapsed_seconds": 126.91557509999257,
+  "evaluator_change": "Rendezvous waits are recomputed from each iteration's readiness; obsolete prior-iteration waits are not retained.",
+  "expected_instances": 720,
+  "expected_method_records": 2880,
+  "frozen_artifact_audit": {
+    "changed_files": [],
+    "manifest_entries": 5782,
+    "missing_files": [],
+    "passed": true
+  },
+  "frozen_execution_commit": "8abdc6b7d9f82a7dc630468e4f108e48f2246e84",
+  "frozen_output_directory": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\final_m3_m4_m5_alns_720_semantics_corrected_20261113",
+  "input_records": 720,
+  "methods": {
+    "feasibility_aware_alns": {
+      "corrected_architecture_valid": 720,
+      "corrected_feasible": 720,
+      "max_abs_objective_change": 0.0,
+      "mean_objective_change": 0.0,
+      "objective_changed_over_tolerance": 0,
+      "previously_accepted_invalidated": 0,
+      "records": 720
+    },
+    "nils": {
+      "corrected_architecture_valid": 720,
+      "corrected_feasible": 720,
+      "max_abs_objective_change": 13799.324021921027,
+      "mean_objective_change": -144.29369479485337,
+      "objective_changed_over_tolerance": 100,
+      "previously_accepted_invalidated": 0,
+      "records": 720
+    },
+    "no_unpairing": {
+      "corrected_architecture_valid": 720,
+      "corrected_feasible": 720,
+      "max_abs_objective_change": 4359.567447249079,
+      "mean_objective_change": -59.010598388452266,
+      "objective_changed_over_tolerance": 62,
+      "previously_accepted_invalidated": 0,
+      "records": 720
+    },
+    "paired_baseline": {
+      "corrected_architecture_valid": 720,
+      "corrected_feasible": 720,
+      "max_abs_objective_change": 3165.8906178071047,
+      "mean_objective_change": -28.81882116792086,
+      "objective_changed_over_tolerance": 65,
+      "previously_accepted_invalidated": 0,
+      "records": 720
+    }
+  },
+  "previously_accepted_records_invalidated": 0,
+  "revalidated_records": 2880,
+  "status": "BLOCKED"
+}

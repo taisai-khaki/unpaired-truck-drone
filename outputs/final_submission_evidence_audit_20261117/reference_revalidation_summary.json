@@ -1,0 +1,19 @@
+{
+  "m1_architecture_valid": 720,
+  "m1_feasible": 720,
+  "m1_objectives_reproduced": 720,
+  "m1_reference_records": 720,
+  "real_data_invalid_records": 14,
+  "real_data_objectives_changed_over_tolerance": 0,
+  "real_data_records": 56,
+  "real_data_valid_methods_by_lambda": {
+    "0.075": 7,
+    "0.100": 7,
+    "0.115": 7,
+    "0.120": 7,
+    "0.125": 7,
+    "0.130": 7,
+    "0.150": 0,
+    "0.200": 0
+  }
+}

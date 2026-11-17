@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 try:  # pragma: no cover - depends on environment
@@ -53,6 +55,8 @@ class _PulpModel:
         self.ObjVal = math.nan
         self.MIPGap = math.nan
         self.BestBound = math.nan
+        self.LogFile: str | None = None
+        self.SolverLogStatus = ""
 
     def addVar(
         self,
@@ -91,7 +95,7 @@ class _PulpModel:
             raise RuntimeError("PULP is not installed")
         time_limit = self.Params.TimeLimit if self.Params.TimeLimit > 0 else None
         threads = self.Params.Threads if self.Params.Threads and self.Params.Threads > 0 else None
-        gap = self.Params.MIPGap if self.Params.MIPGap and self.Params.MIPGap > 0 else None
+        gap = self.Params.MIPGap if self.Params.MIPGap is not None and self.Params.MIPGap >= 0 else None
         solver = None
         if _ACTIVE_PULP_SOLVER == "cplex":
             if hasattr(pulp, "CPLEX_PY"):
@@ -129,6 +133,7 @@ class _PulpModel:
                 timeLimit=time_limit,
                 threads=cbc_threads,
                 gapRel=gap,
+                logPath=self.LogFile,
             )
         self._problem.solve(solver)
 
@@ -161,38 +166,96 @@ class _PulpModel:
             try:
                 self.MIPGap = float(cpx.solution.MIP.get_mip_relative_gap())
             except Exception:
-                self.MIPGap = (0.0 if self.Status == _PulpGRB.OPTIMAL else math.nan)
+                self.MIPGap = math.nan
             try:
                 self.BestBound = float(cpx.solution.MIP.get_best_objective())
             except Exception:
-                self.BestBound = float(self.ObjVal) if self.Status == _PulpGRB.OPTIMAL and self.SolCount > 0 else math.nan
+                self.BestBound = math.nan
             return
 
         status_name = pulp.LpStatus[self._problem.status]
         status_lower = status_name.lower()
-        if status_lower == "optimal":
-            self.Status = _PulpGRB.OPTIMAL
-        elif status_lower in {"not solved", "suboptimal"}:
-            self.Status = _PulpGRB.TIME_LIMIT
-        elif status_lower in {"infeasible", "unbounded", "undefined"}:
-            self.Status = 0
-        elif status_lower == "integer infeasible":
-            self.Status = 0
-        else:
-            self.Status = 0
-
         self.SolCount = 1 if any(v.varValue is not None for v in self._problem.variables()) else 0
         if self.SolCount and self._problem.objective is not None:
             self.ObjVal = float(pulp.value(self._problem.objective))
         else:
             self.ObjVal = math.nan
+        self.MIPGap = math.nan
+        self.BestBound = math.nan
+        result = _read_cbc_result(self.LogFile)
+        self.SolverLogStatus = result["result"]
+        if result["has_feasible_solution"] is False:
+            self.SolCount = 0
+            self.ObjVal = math.nan
+        if result["best_bound"] is not None:
+            self.BestBound = float(result["best_bound"])
+        if result["objective"] is not None and self.SolCount:
+            logged_objective = float(result["objective"])
+            if math.isfinite(self.ObjVal) and not math.isclose(
+                logged_objective, self.ObjVal, rel_tol=1e-7, abs_tol=1e-7
+            ):
+                self.SolCount = 0
+                self.ObjVal = math.nan
+        if self.SolCount and math.isfinite(self.BestBound) and math.isfinite(self.ObjVal):
+            denominator = max(abs(self.ObjVal), 1e-12)
+            self.MIPGap = max(0.0, (self.ObjVal - float(self.BestBound)) / denominator)
 
-        if self.Status in {_PulpGRB.OPTIMAL, _PulpGRB.FEASIBLE, _PulpGRB.SUBOPTIMAL}:
-            self.MIPGap = 0.0
-            self.BestBound = float(self.ObjVal) if self.SolCount > 0 else math.nan
+        result_lower = self.SolverLogStatus.lower()
+        if "optimal solution found" in result_lower and "within gap tolerance" not in result_lower:
+            self.Status = _PulpGRB.OPTIMAL
+        elif "time limit" in result_lower or "stopped on time" in result_lower:
+            self.Status = _PulpGRB.TIME_LIMIT if self.SolCount else 0
+        elif status_lower in {"infeasible", "unbounded", "undefined", "integer infeasible"}:
+            self.Status = 0
+        elif self.SolCount:
+            self.Status = _PulpGRB.FEASIBLE
+        elif status_lower in {"not solved", "suboptimal"}:
+            self.Status = _PulpGRB.TIME_LIMIT
         else:
-            self.MIPGap = math.nan
-            self.BestBound = math.nan
+            self.Status = 0
+
+
+def _read_cbc_result(log_path: str | None) -> dict[str, Any]:
+    if not log_path:
+        return {
+            "result": "",
+            "objective": None,
+            "best_bound": None,
+            "has_feasible_solution": None,
+        }
+    path = Path(log_path)
+    if not path.is_file():
+        return {
+            "result": "",
+            "objective": None,
+            "best_bound": None,
+            "has_feasible_solution": None,
+        }
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    def last_value(pattern: str) -> float | None:
+        matches = re.findall(pattern, text, flags=re.IGNORECASE | re.MULTILINE)
+        if not matches:
+            return None
+        try:
+            return float(matches[-1])
+        except (TypeError, ValueError):
+            return None
+
+    results = re.findall(r"^Result\s*-\s*(.+)$", text, flags=re.IGNORECASE | re.MULTILINE)
+    reported_lower_bound = last_value(r"^Lower bound:\s*([-+0-9.eE]+)\s*$")
+    if reported_lower_bound is None:
+        reported_lower_bound = last_value(r"best possible\s+([-+0-9.eE]+)")
+    objective = last_value(r"^Objective value:\s*([-+0-9.eE]+)\s*$")
+    no_feasible_solution = bool(
+        re.search(r"^No feasible solution found\s*$", text, flags=re.IGNORECASE | re.MULTILINE)
+    )
+    return {
+        "result": results[-1].strip() if results else "",
+        "objective": objective,
+        "best_bound": reported_lower_bound,
+        "has_feasible_solution": False if no_feasible_solution else objective is not None,
+    }
 
 
 class _PulpBackend:

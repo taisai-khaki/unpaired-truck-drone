@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
+from pathlib import Path
 
 import pytest
 
@@ -14,7 +16,8 @@ from src.heuristics.nils import (
     summarize_drone_usage,
 )
 from src.heuristics.local_search import apply_two_opt_to_solution
-from src.instance_generator import InstanceGenerator
+from src.experiments.refresh_legacy_semantics import solution_from_payload
+from src.instance_generator import InstanceGenerator, load_instance_json
 from src.parameters import GenerationSettings, SearchConfig
 from src.timing import compute_synchronization_waiting
 
@@ -48,6 +51,33 @@ def test_sync_waiting_uses_post_service_readiness() -> None:
     service = instance.customer_map()[1].service_time_min
     assert diagnostics["waiting_truck"][(1, 1)] == 2.0 - service
     assert diagnostics["waiting_drone"][(1, 1)] == 0.0
+
+
+def test_upstream_rendezvous_does_not_preserve_stale_downstream_wait() -> None:
+    repo = Path(__file__).resolve().parents[1]
+    instance_path = (
+        repo
+        / "outputs/final_legacy_semantics_refresh_20261114/inputs/small_instances/small_8_01.json"
+    )
+    raw_path = (
+        repo
+        / "outputs/final_legacy_semantics_refresh_20261114/raw/exact_solver_runs.jsonl"
+    )
+    instance = load_instance_json(instance_path)
+    exact_record = next(
+        json.loads(line)
+        for line in raw_path.read_text(encoding="utf-8").splitlines()
+        if json.loads(line).get("instance_id") == "small_8_01"
+    )
+    solution = solution_from_payload(exact_record["solution"])
+
+    objective, components = evaluate_solution(instance, solution)
+
+    assert solution.a_drone[(2, 5)] == pytest.approx(56.3718302400)
+    assert solution.tardiness[5] == pytest.approx(0.0)
+    assert objective == pytest.approx(59.3834693509)
+    assert components["tardiness_cost"] == pytest.approx(0.0)
+    assert solution.waiting_drone[(1, 7)] == pytest.approx(7.9222862220)
 
 
 def test_cross_truck_sortie_is_loaded_and_reconciled() -> None:

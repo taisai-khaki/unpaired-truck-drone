@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Callable, List
 
 from ..parameters import SearchConfig
@@ -15,6 +16,7 @@ def solve_instance(
     instance: InstanceData,
     config: SearchConfig,
     progress_hook: Callable[[str], None] | None = None,
+    solver_log_path: str | Path | None = None,
 ) -> SolutionData:
     """Build and solve one MILP instance."""
     if progress_hook is not None:
@@ -23,6 +25,8 @@ def solve_instance(
     if progress_hook is not None:
         progress_hook("build_model_done")
     model = artifacts.model
+    if solver_log_path is not None:
+        model.LogFile = str(solver_log_path)
 
     if config.milp.threads > 0:
         model.Params.Threads = config.milp.threads
@@ -61,8 +65,45 @@ def solve_instance(
         sol.components["best_bound"] = float(model.BestBound)
     if hasattr(model, "ObjVal"):
         sol.components["incumbent_objective"] = float(model.ObjVal)
+    if hasattr(model, "SolverLogStatus"):
+        sol.__dict__["solver_log_status"] = str(model.SolverLogStatus)
+    sol.__dict__["milp_native_snapshot"] = {
+        name: {
+            ",".join(str(part) for part in key)
+            if isinstance(key, tuple)
+            else str(key): _solver_value(variable)
+            for key, variable in values.items()
+        }
+        for name, values in artifacts.variables.items()
+        if name in {
+            "a_truck",
+            "a_drone",
+            "l_truck",
+            "l_drone",
+            "ready_truck",
+            "ready_drone",
+            "tw_truck",
+            "tw_drone",
+            "a_bar_truck",
+            "a_bar_drone",
+            "tardiness",
+            "lambda_loaded",
+            "r",
+            "r_departure",
+        }
+    }
     sol.objective = float(model.ObjVal) if hasattr(model, "ObjVal") else sol.objective
     return sol
+
+
+def _solver_value(variable) -> float:
+    if hasattr(variable, "x"):
+        return float(variable.x)
+    if hasattr(variable, "varValue"):
+        return float(variable.varValue)
+    if hasattr(variable, "value"):
+        return float(variable.value())
+    return float(variable)
 
 
 def solve_multiple(instances: List[InstanceData], config: SearchConfig) -> List[SolutionData]:

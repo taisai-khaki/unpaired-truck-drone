@@ -584,9 +584,13 @@ def _run_method(
     if method_name == "nils_r":
         return nils_r_baseline(instance, config).solution
     if method_name == "nils_no_local_search":
-        return nils_no_local_search_baseline(instance, config).solution
+        return nils_no_local_search_baseline(
+            instance, config, initial_truck_routes=initial_truck_routes
+        ).solution
     if method_name == "nils_no_perturbation":
-        return nils_no_perturbation_baseline(instance, config).solution
+        return nils_no_perturbation_baseline(
+            instance, config, initial_truck_routes=initial_truck_routes
+        ).solution
     if method_name == "nils_no_battery_screening":
         return nils_no_battery_screening_baseline(instance, config).solution
     if method_name == "feasibility_aware_alns":

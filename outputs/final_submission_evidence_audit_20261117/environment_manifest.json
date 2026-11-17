@@ -1,0 +1,18 @@
+{
+  "available_pulp_solvers": [
+    "PULP_CBC_CMD"
+  ],
+  "branch": "codex/utdrp-latest",
+  "cbc_executable": "C:\\Users\\L03128674\\AppData\\Roaming\\Python\\Python314\\site-packages\\pulp\\apis\\../solverdir/cbc/win/i64/cbc.exe",
+  "controlling_pdf": "C:/Users/L03128674/Downloads/Drone_paper (9).pdf",
+  "controlling_pdf_sha256": "EF3AE96764DB89A44CA71EE4BF3579B846A04B366F265D9C2DE41FE13F1A3247",
+  "created_utc": "2026-11-17T17:20:51.932703+00:00",
+  "frozen_execution_commit": "8abdc6b7d9f82a7dc630468e4f108e48f2246e84",
+  "frozen_input_manifest": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\final_m3_m4_m5_alns_720_semantics_corrected_20261113\\input_manifest.csv",
+  "frozen_output_sha256_manifest": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\final_m3_m4_m5_alns_720_semantics_corrected_20261113\\artifact_sha256_manifest.csv",
+  "legacy_small_manifest": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\final_legacy_semantics_refresh_20261114\\run_manifest.json",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "pulp": "3.3.0",
+  "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+  "repository_head_at_audit_start": "ff95956caeb9efa2f8ce6f7123d407cce80a36c5"
+}

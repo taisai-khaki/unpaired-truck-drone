@@ -156,7 +156,6 @@ def test_terminal_depot_recovery_forbids_a_later_sortie() -> None:
 def test_post_local_search_reverts_s0045_drone_shift_failure(monkeypatch) -> None:
     instance_path = ROOT / "outputs" / "full_revised_usync_20261101_paper_ready" / "raw" / "S0045_R02.json"
     backbone_path = ROOT / "outputs" / "matched_m3_m4_m5_alns_common_backbone_20261106" / "initial_truck_backbones.json"
-    failure_path = ROOT / "tests" / "fixtures" / "S0045_R02_post_local_search_failure.json"
     instance = load_instance_json(instance_path)
     backbone = json.loads(backbone_path.read_text(encoding="utf-8"))["instances"][instance.name]["truck_routes"]
     truck_routes = {int(truck): list(route) for truck, route in backbone.items()}
@@ -173,17 +172,17 @@ def test_post_local_search_reverts_s0045_drone_shift_failure(monkeypatch) -> Non
     feasible_before.objective, feasible_before.components = evaluate_solution(instance, feasible_before)
     assert is_feasible(instance, feasible_before)
 
-    failure = json.loads(failure_path.read_text(encoding="utf-8"))
     infeasible_after_two_opt = SolutionData(
         instance_name=instance.name,
-        status="S0045_R02_saved_failure",
+        status="S0045_R02_post_local_search_shift_failure",
         objective=0.0,
         components={},
-        truck_routes={int(truck): route for truck, route in failure["truck_routes"].items()},
-        drone_routes={int(drone): route for drone, route in failure["drone_routes"].items()},
-        u_drone={(3, customer): 1 for customer in failure["drone_customers"]},
-        z1={(event["node"], event["drone"], event["truck"]): 1 for event in failure["z1"]},
-        z2={(event["node"], event["drone"], event["truck"]): 1 for event in failure["z2"]},
+        truck_routes={truck: [0, 0] for truck in instance.truck_ids()},
+        drone_routes={
+            drone: ([0, *instance.customer_ids, 0] if drone == 3 else [0, 0])
+            for drone in instance.drone_ids()
+        },
+        u_drone={(3, customer): 1 for customer in instance.customer_ids},
     )
     _sync_route_assignments(infeasible_after_two_opt, instance)
     infeasible_after_two_opt.objective, infeasible_after_two_opt.components = evaluate_solution(
