@@ -52,10 +52,11 @@ from ..heuristics.construction import _fill_solution_from_routes
 
 REPO = Path(__file__).resolve().parents[2]
 FROZEN = REPO / "outputs/final_m3_m4_m5_alns_720_semantics_corrected_20261113"
+FROZEN_INPUTS = REPO / "outputs/full_m3_m4_m5_alns_720_frozen_20261106"
 PRIOR_AUDIT = REPO / "outputs/final_submission_evidence_audit_20261117"
 LEGACY_TRUCK_ONLY = REPO / "outputs/manuscript_semantics_reconciliation_20261112/truck_only_720"
 OUTPUT = REPO / "outputs/final_submission_evidence_audit_20261125"
-RAW_INSTANCES = FROZEN / "raw"
+RAW_INSTANCES = FROZEN_INPUTS / "raw"
 INPUT_MANIFEST = FROZEN / "input_manifest.csv"
 RAW_METHODS = FROZEN / "tables/raw_720_method_results.csv"
 RUN_CONFIG = FROZEN / "run_config.yaml"
@@ -299,6 +300,7 @@ def _initialize_output() -> dict[str, Any]:
         "source_code_sha256": code_sha,
         "input_manifest_sha256": input_manifest_sha,
         "frozen_output_dir": str(FROZEN),
+        "frozen_input_dir": str(FROZEN_INPUTS),
         "frozen_output_execution_commit": "8abdc6b7d9f82a7dc630468e4f108e48f2246e84",
         "frozen_artifact_verification": frozen_check,
         "methods": METHODS,
