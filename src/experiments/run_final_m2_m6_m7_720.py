@@ -236,8 +236,27 @@ def _initialize_output() -> dict[str, Any]:
     code_sha = _sha256_file(Path(__file__))
     input_manifest_sha = _sha256_file(INPUT_MANIFEST)
     run_id = hashlib.sha256(f"{head}|{code_sha}|{input_manifest_sha}".encode("utf-8")).hexdigest()
+    diagnostic_provenance = existing.get("preflight_diagnostic_provenance") if existing else None
     if existing and (existing.get("run_id") != run_id or existing.get("execution_commit") != head):
-        raise RuntimeError("Existing audit output belongs to a different code/input run; refusing to mix records")
+        if RAW_JSONL.is_file() and RAW_JSONL.stat().st_size:
+            raise RuntimeError("Existing full-run checkpoints belong to a different code/input run; refusing to mix records")
+        if existing.get("input_manifest_sha256") != input_manifest_sha:
+            raise RuntimeError("Existing audit output belongs to a different frozen input design")
+        diagnostic_path = OUTPUT / "diagnostic_raw_results.jsonl"
+        if diagnostic_path.is_file() and diagnostic_path.stat().st_size:
+            previous_diagnostics = _read_jsonl(diagnostic_path)
+            previous_run_ids = {row.get("run_id") for row in previous_diagnostics}
+            previous_keys = {(row.get("method"), row.get("instance_id")) for row in previous_diagnostics}
+            expected_keys = {(method, instance_id) for method in METHODS for instance_id in DIAGNOSTIC_IDS}
+            if len(previous_diagnostics) != 24 or previous_keys != expected_keys or len(previous_run_ids) != 1:
+                raise RuntimeError("Saved diagnostic records are incomplete or duplicated; refusing to reuse them")
+            diagnostic_provenance = {
+                "run_id": next(iter(previous_run_ids)),
+                "execution_commit": existing.get("execution_commit"),
+                "source_code_sha256": existing.get("source_code_sha256"),
+                "records": len(previous_diagnostics),
+                "reused_after_gate_reporting_fix": True,
+            }
 
     OUTPUT.mkdir(parents=True, exist_ok=True)
     for source, dest in (
@@ -318,6 +337,7 @@ def _initialize_output() -> dict[str, Any]:
             "M1_M3_M4_M5_M8_references": "Read-only corrected evaluator revalidation from the 20261117 audit; original frozen outputs are not modified.",
         },
         "environment": _package_manifest(),
+        "preflight_diagnostic_provenance": diagnostic_provenance,
         "exact_milp_evidence": {
             "reused_from": str(prior_exact),
             "exact_cases": 7,
@@ -325,6 +345,7 @@ def _initialize_output() -> dict[str, Any]:
             "new_exact_solve_started": False,
             "solver": "CBC 2.10.3; prior per-instance 120-second audit logs retained",
         },
+        "preflight_gate": existing.get("preflight_gate") if existing else None,
         "status": existing.get("status", "PREPARED") if existing else "PREPARED",
     }
     _atomic_json(RUN_MANIFEST_PATH, manifest)
@@ -659,25 +680,45 @@ def run_diagnostic() -> dict[str, Any]:
     if {int(row["number_of_drones"]) for row in sample} != {1, 2, 3}:
         raise RuntimeError("Diagnostic sample must span fleets of one, two, and three drones")
     config = build_search_config(yaml.safe_load(RUN_CONFIG.read_text(encoding="utf-8")))
-    raw_rows = []
-    for input_row in sample:
-        m5_row = m5[input_row["instance_id"]]
-        for method in METHODS:
-            _append_log(f"DIAGNOSTIC start {input_row['instance_id']} {method}")
-            result = _run_one(method, input_row, m5_row, config)
-            result["run_id"] = manifest["run_id"]
-            raw_rows.append(result)
-            _append_line(OUTPUT / "diagnostic_raw_results.jsonl", result)
-            _append_log(
-                f"DIAGNOSTIC done {input_row['instance_id']} {method} valid={result.get('valid_run')} "
-                f"failure={result.get('failure_type')} wall={result.get('elapsed_wall_seconds', 0):.2f}s"
-            )
-            print(
-                f"DIAGNOSTIC {len(raw_rows)}/24 {input_row['instance_id']} {method} "
-                f"valid={result.get('valid_run')} failure={result.get('failure_type')} "
-                f"wall={result.get('elapsed_wall_seconds', 0):.1f}s",
-                flush=True,
-            )
+    diagnostic_path = OUTPUT / "diagnostic_raw_results.jsonl"
+    expected_keys = {(method, instance_id) for method in METHODS for instance_id in DIAGNOSTIC_IDS}
+    cached_rows = _read_jsonl(diagnostic_path)
+    diagnostic_reused = False
+    if cached_rows:
+        cached_keys = {(row.get("method"), row.get("instance_id")) for row in cached_rows}
+        cached_run_ids = {row.get("run_id") for row in cached_rows}
+        provenance = manifest.get("preflight_diagnostic_provenance") or {}
+        allowed_run_ids = {manifest["run_id"], provenance.get("run_id")}
+        if len(cached_rows) != 24 or cached_keys != expected_keys or len(cached_run_ids) != 1 or not cached_run_ids.issubset(allowed_run_ids):
+            raise RuntimeError("Saved diagnostic checkpoint is incomplete or has unverified provenance")
+        for row in cached_rows:
+            input_row = by_id[row["instance_id"]]
+            if row.get("input_sha256") != input_row["instance_sha256"]:
+                raise RuntimeError(f"Cached diagnostic input hash mismatch: {row['instance_id']}")
+            if row["method"] in {"M6", "M7"} and row.get("backbone_routes_sha256") != input_row["backbone_routes_sha256"]:
+                raise RuntimeError(f"Cached diagnostic backbone mismatch: {row['instance_id']} {row['method']}")
+        raw_rows = cached_rows
+        diagnostic_reused = True
+    else:
+        raw_rows = []
+        for input_row in sample:
+            m5_row = m5[input_row["instance_id"]]
+            for method in METHODS:
+                _append_log(f"DIAGNOSTIC start {input_row['instance_id']} {method}")
+                result = _run_one(method, input_row, m5_row, config)
+                result["run_id"] = manifest["run_id"]
+                raw_rows.append(result)
+                _append_line(diagnostic_path, result)
+                _append_log(
+                    f"DIAGNOSTIC done {input_row['instance_id']} {method} valid={result.get('valid_run')} "
+                    f"failure={result.get('failure_type')} wall={result.get('elapsed_wall_seconds', 0):.2f}s"
+                )
+                print(
+                    f"DIAGNOSTIC {len(raw_rows)}/24 {input_row['instance_id']} {method} "
+                    f"valid={result.get('valid_run')} failure={result.get('failure_type')} "
+                    f"wall={result.get('elapsed_wall_seconds', 0):.1f}s",
+                    flush=True,
+                )
     diagnostic_rows = []
     for row in raw_rows:
         diagnostic_rows.append({key: value for key, value in row.items() if key != "solution_payload"})
@@ -739,7 +780,11 @@ def run_diagnostic() -> dict[str, Any]:
         "M6_M7_initial_backbone_seed_flags_passed": flags_and_backbones,
         "objective_components_consistent": objective_consistent,
         "software_exceptions": len(exceptions),
-        "frozen_artifact_hashes_passed": manifest["frozen_artifact_verification"]["passed"],
+        "frozen_artifact_hashes_passed": manifest["frozen_artifact_verification"]["frozen_artifact_manifest"]["passed"],
+        "diagnostic_results_reused_from_checkpoint": diagnostic_reused,
+        "diagnostic_execution_run_ids": sorted({row.get("run_id") for row in raw_rows}),
+        "diagnostic_execution_commit": (manifest.get("preflight_diagnostic_provenance") or {}).get("execution_commit", manifest["execution_commit"]),
+        "gate_evaluation_commit": manifest["execution_commit"],
         "objective_reference_note": "227 old M3/M4/M5 objectives differ on corrected re-evaluation; comparisons will use the read-only corrected references while immutable archived records remain untouched.",
         "full_2160_runs_started": False,
     }
