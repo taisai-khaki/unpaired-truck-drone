@@ -1,0 +1,19 @@
+{
+  "by_method": {
+    "M2": 720,
+    "M6": 720,
+    "M7": 720
+  },
+  "completed": 2160,
+  "duplicate_method_instance_keys": 0,
+  "elapsed_seconds_this_process": 30928.17716880003,
+  "expected": 2160,
+  "fraction_complete": 1.0,
+  "last_failure_type": "",
+  "last_instance_id": "S0072_R10",
+  "last_method": "M7",
+  "last_valid": true,
+  "last_wall_seconds": 120.17968350020237,
+  "status": "COMPLETED",
+  "updated_utc": "2026-11-26T12:20:30.586002+00:00"
+}

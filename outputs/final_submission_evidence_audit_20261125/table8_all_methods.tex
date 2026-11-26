@@ -1,0 +1,21 @@
+\begin{table}[htbp]
+\centering
+\caption{Operational indicators for all eight methods}
+\label{tab:all_methods_operational}
+\scriptsize
+\begin{tabular}{lrrrrrrrrrrr}
+\toprule
+Method & Valid & CPU (s) & HPT (min) & HP delivery (min) & HP on-time (\%) & Drone share (\%) & Truck km & Drone km & Sorties & Rendezvous & Wait (min) \\
+\midrule
+M1 & 720/720 & 0.04 & 1,513.66 & 159.70 & 21.79 & 0.00 & 253.16 & 0.00 & 0.00 & 0.00 & 0.00 \\
+M2 & 487/720 & 0.02 & 749.80 & 128.22 & 28.65 & 4.13 & 276.55 & 15.90 & 1.00 & 0.00 & 0.00 \\
+M3 & 720/720 & 10.54 & 850.44 & 97.70 & 48.00 & 4.94 & 262.69 & 61.36 & 1.91 & 2.17 & 176.80 \\
+M4 & 720/720 & 18.69 & 783.45 & 92.42 & 51.13 & 5.03 & 250.00 & 76.54 & 2.24 & 2.72 & 301.31 \\
+M5 & 720/720 & 33.29 & 807.92 & 93.44 & 50.97 & 5.81 & 243.50 & 87.33 & 2.52 & 3.31 & 283.15 \\
+M6 & 720/720 & 29.22 & 982.96 & 110.36 & 44.52 & 6.65 & 321.36 & 92.39 & 3.00 & 3.80 & 385.77 \\
+M7 & 720/720 & 31.63 & 996.64 & 108.58 & 41.91 & 5.81 & 182.06 & 87.02 & 2.67 & 3.44 & 343.10 \\
+M8 & 720/720 & 60.79 & 554.33 & 85.93 & 40.42 & 1.30 & 237.96 & 9.62 & 0.56 & 0.00 & 0.00 \\
+\bottomrule
+\end{tabular}
+\begin{minipage}{\textwidth}\footnotesize HPT is total high-priority tardiness. On-time rates are post-solution diagnostics, not objective terms. Full priority-class tardiness, active drones, distances, sortie types, reloads, swaps, synchronization handling, and waiting are in \texttt{all\_methods\_operational\_indicators.csv}. M2 averages use its 487 valid runs.\end{minipage}
+\end{table}

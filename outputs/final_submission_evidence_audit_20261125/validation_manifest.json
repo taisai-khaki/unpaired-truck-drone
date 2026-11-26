@@ -1,0 +1,61 @@
+{
+  "created_utc": "2026-11-26T12:20:28.617483+00:00",
+  "existing_reference_methods": {
+    "M1": 720,
+    "M3": 720,
+    "M4": 720,
+    "M5": 720,
+    "M8": 720
+  },
+  "expected_new_records": 2160,
+  "failures_retained_in_results": true,
+  "invalid_counts_by_size": {
+    "M2": {
+      "100": 188,
+      "15": 0,
+      "50": 9,
+      "75": 36
+    },
+    "M6": {
+      "100": 0,
+      "15": 0,
+      "50": 0,
+      "75": 0
+    },
+    "M7": {
+      "100": 0,
+      "15": 0,
+      "50": 0,
+      "75": 0
+    }
+  },
+  "invalid_objectives_excluded_from_averages": true,
+  "method_validation": {
+    "M2": {
+      "architecture_invalid": 0,
+      "infeasible": 233,
+      "objective_inconsistencies": 0,
+      "records": 720,
+      "run_exceptions": 0,
+      "valid": 487
+    },
+    "M6": {
+      "architecture_invalid": 0,
+      "infeasible": 0,
+      "objective_inconsistencies": 0,
+      "records": 720,
+      "run_exceptions": 0,
+      "valid": 720
+    },
+    "M7": {
+      "architecture_invalid": 0,
+      "infeasible": 0,
+      "objective_inconsistencies": 0,
+      "records": 720,
+      "run_exceptions": 0,
+      "valid": 720
+    }
+  },
+  "observed_new_records": 2160,
+  "strict_feasibility_and_architecture_required_for_objective_averages": true
+}

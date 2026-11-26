@@ -85,6 +85,14 @@ METHOD_LABELS = {
     "M7": "NILS without perturbation",
     "M8": "Feasibility-aware ALNS",
 }
+
+
+def _method_name(method: str) -> str:
+    if method == "M1":
+        return "truck_only"
+    return METHODS[method]
+
+
 SIZES = (15, 50, 75, 100)
 EXPECTED_BY_SIZE = {15: 230, 50: 210, 75: 90, 100: 190}
 EXPECTED_RUNS = 720
@@ -423,6 +431,16 @@ def _customer_metrics(instance: Any, solution: SolutionData) -> dict[str, Any]:
     return values
 
 
+def _customer_metric_summary_fields(customer: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "high_priority_tardiness": customer.get("high_priority_tardiness_minutes"),
+        "medium_priority_tardiness_minutes": customer.get("medium_priority_tardiness_minutes"),
+        "low_priority_tardiness_minutes": customer.get("low_priority_tardiness_minutes"),
+        "high_priority_on_time_rate": customer.get("high_priority_on_time_rate"),
+        "mean_high_priority_delivery_time": customer.get("high_priority_mean_delivery_time"),
+    }
+
+
 def _solution_metrics(
     instance: Any,
     solution: SolutionData,
@@ -439,7 +457,7 @@ def _solution_metrics(
     if exception or solution is None:
         return {
             "method": method,
-            "method_name": METHODS[method],
+            "method_name": _method_name(method),
             "instance_id": instance_row["instance_id"],
             "scenario_class_id": instance_row["scenario_id"],
             "seed": int(instance_row["original_instance_seed"]),
@@ -514,7 +532,7 @@ def _solution_metrics(
         failure_type = "IMPLEMENTATION_INCONSISTENCY"
     result = {
         "method": method,
-        "method_name": METHODS[method],
+        "method_name": _method_name(method),
         "instance_id": instance_row["instance_id"],
         "scenario_class_id": instance_row["scenario_id"],
         "seed": int(instance_row["original_instance_seed"]),
@@ -913,6 +931,7 @@ def _m1_reference_rows() -> list[dict[str, Any]]:
             initial_objective=float(objective),
             elapsed_seconds=float(truck_runtime[instance_id]["cpu_seconds"]),
         )
+        metrics.update(_customer_metric_summary_fields(metrics.get("customer_metrics", {})))
         metrics["valid_run"] = not any(item.severity == "ERROR" for item in findings) and not arch_errors
         metrics["objective"] = float(objective) if metrics["valid_run"] else None
         metrics["cpu_time_seconds"] = float(truck_runtime[instance_id]["cpu_seconds"])
@@ -1009,11 +1028,7 @@ def _new_method_summary_rows() -> list[dict[str, Any]]:
             "truck_cost": _float(record.get("truck_cost")),
             "drone_cost": _float(record.get("drone_cost")),
             "priority_tardiness_cost": _float(record.get("priority_tardiness_cost")),
-            "high_priority_tardiness": customer.get("high_priority_tardiness_minutes"),
-            "medium_priority_tardiness_minutes": customer.get("medium_priority_tardiness_minutes"),
-            "low_priority_tardiness_minutes": customer.get("low_priority_tardiness_minutes"),
-            "high_priority_on_time_rate": customer.get("high_priority_on_time_rate"),
-            "mean_high_priority_delivery_time": customer.get("high_priority_priority_mean_delivery_time"),
+            **_customer_metric_summary_fields(customer),
             "truck_distance": _float(record.get("truck_distance")),
             "drone_distance": _float(record.get("drone_distance")),
             "drone_customers_served": int(record.get("drone_customers_served", 0)),
@@ -1108,7 +1123,7 @@ def _summary_outputs() -> dict[str, Any]:
 
     operational_rows = []
     op_keys = (
-        "drone_share", "drone_customers_served", "active_drones_used", "truck_distance", "drone_distance",
+        "cpu_time_seconds", "drone_share", "drone_customers_served", "active_drones_used", "truck_distance", "drone_distance",
         "physical_rendezvous_count", "parcel_reload_count", "battery_swap_count", "synchronization_waiting_minutes",
         "synchronization_handling_minutes", "drone_sorties", "depot_depot_sorties", "depot_truck_sorties",
         "truck_depot_sorties", "same_truck_recovery_sorties", "cross_truck_recovery_sorties",
@@ -1203,16 +1218,30 @@ def _summary_outputs() -> dict[str, Any]:
                 "mean_cpu_M5_seconds": _mean([float(m5_rows[i]["cpu_time_seconds"]) for i in paired_ids]),
                 f"mean_cpu_{ablation}_seconds": _mean([float(ablation_rows[i]["cpu_time_seconds"]) for i in paired_ids]),
             })
-            hp5 = [float(m5_rows[i]["high_priority_tardiness"]) for i in paired_ids if _float(m5_rows[i].get("high_priority_tardiness")) is not None]
-            hpab = [float(ablation_rows[i]["high_priority_tardiness"]) for i in paired_ids if _float(ablation_rows[i].get("high_priority_tardiness")) is not None]
-            hp5rate = [float(m5_rows[i]["high_priority_on_time_rate"]) for i in paired_ids if _float(m5_rows[i].get("high_priority_on_time_rate")) is not None]
-            hpab_rate = [float(ablation_rows[i]["high_priority_on_time_rate"]) for i in paired_ids if _float(ablation_rows[i].get("high_priority_on_time_rate")) is not None]
+            hp_tardiness_pairs = [
+                (float(m5_rows[i]["high_priority_tardiness"]), float(ablation_rows[i]["high_priority_tardiness"]))
+                for i in paired_ids
+                if _float(m5_rows[i].get("high_priority_tardiness")) is not None
+                and _float(ablation_rows[i].get("high_priority_tardiness")) is not None
+            ]
+            hp_on_time_pairs = [
+                (float(m5_rows[i]["high_priority_on_time_rate"]), float(ablation_rows[i]["high_priority_on_time_rate"]))
+                for i in paired_ids
+                if _float(m5_rows[i].get("high_priority_on_time_rate")) is not None
+                and _float(ablation_rows[i].get("high_priority_on_time_rate")) is not None
+            ]
+            hp5 = [pair[0] for pair in hp_tardiness_pairs]
+            hpab = [pair[1] for pair in hp_tardiness_pairs]
+            hp5rate = [pair[0] for pair in hp_on_time_pairs]
+            hpab_rate = [pair[1] for pair in hp_on_time_pairs]
             service.append({
                 "comparison": f"M5_vs_{ablation}", "size": scope, "valid_matched_pairs": len(paired_ids), "invalid_or_unavailable_pairs": excluded,
+                "high_priority_tardiness_pairs": len(hp_tardiness_pairs),
+                "high_priority_on_time_pairs": len(hp_on_time_pairs),
                 "mean_high_priority_tardiness_M5": _mean(hp5), "mean_high_priority_tardiness_ablation": _mean(hpab),
-                "mean_high_priority_tardiness_difference_ablation_minus_M5": _mean([b-a for a,b in zip(hp5,hpab)]) if len(hp5)==len(hpab) else None,
+                "mean_high_priority_tardiness_difference_ablation_minus_M5": _mean([b-a for a,b in hp_tardiness_pairs]),
                 "mean_high_priority_on_time_rate_M5": _mean(hp5rate), "mean_high_priority_on_time_rate_ablation": _mean(hpab_rate),
-                "mean_high_priority_on_time_difference_ablation_minus_M5": _mean([b-a for a,b in zip(hp5rate,hpab_rate)]) if len(hp5rate)==len(hpab_rate) else None,
+                "mean_high_priority_on_time_difference_ablation_minus_M5": _mean([b-a for a,b in hp_on_time_pairs]),
             })
     _write_csv(OUTPUT / "M5_vs_M6_M7_matched.csv", [row for row in comparisons if row["size"] == "All"])
     _write_csv(OUTPUT / "M5_vs_M6_M7_by_size.csv", [row for row in comparisons if row["size"] != "All"])
@@ -1238,44 +1267,62 @@ def _write_latex_tables(ranked: list[dict[str, Any]], operational_rows: list[dic
     summary_lines = [
         r"\begin{table}[htbp]", r"\centering", r"\caption{Matched objective performance across all eight methods}",
         r"\label{tab:all_methods_objective}", r"\small", r"\begin{tabular}{lrrrrrr}", r"\toprule",
-        "Method & Valid runs & Mean objective & Median objective & Pooled index & Size-balanced index & Rank \\", r"\midrule",
+        "Method & Valid runs & Mean objective & Median objective & Pooled index & Size-balanced index & Rank \\\\", r"\midrule",
     ]
     for row in sorted(ranked, key=lambda value: value["size_balanced_rank"]):
         summary_lines.append(
             f"{row['method']} & {row['valid_runs']}/720 & {_fmt(row['mean_objective'])} & {_fmt(row['median_objective'])} & "
             f"{_fmt(row['pooled_relative_objective_index_vs_M1'])} & {_fmt(row['size_balanced_relative_objective_index_vs_M1'])} & {row['size_balanced_rank']} \\\\"
         )
-    summary_lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    summary_lines += [
+        r"\bottomrule", r"\end{tabular}",
+        r"\begin{minipage}{\textwidth}\footnotesize Objective summaries exclude invalid runs. M2 has only 487/720 valid schedules; its objective averages and indices are conditional on those valid cases.\end{minipage}",
+        r"\end{table}",
+    ]
     (OUTPUT / "table6_all_methods.tex").write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
     overall_operational = [row for row in operational_rows if row["size"] == "All"]
     op_lines = [
         r"\begin{table}[htbp]", r"\centering", r"\caption{Operational indicators for all eight methods}",
-        r"\label{tab:all_methods_operational}", r"\scriptsize", r"\begin{tabular}{lrrrrrrrr}", r"\toprule",
-        "Method & Valid & Drone share & Truck km & Drone km & Rendezvous & Reloads & Swaps & Wait (min) \\", r"\midrule",
+        r"\label{tab:all_methods_operational}", r"\scriptsize", r"\begin{tabular}{lrrrrrrrrrrr}", r"\toprule",
+        "Method & Valid & CPU (s) & HPT (min) & HP delivery (min) & HP on-time (\\%) & Drone share (\\%) & Truck km & Drone km & Sorties & Rendezvous & Wait (min) \\\\", r"\midrule",
     ]
     for row in overall_operational:
         op_lines.append(
-            f"{row['method']} & {row['valid_runs']}/720 & {_fmt(row.get('mean_drone_share'),3)} & {_fmt(row.get('mean_truck_distance'))} & "
-            f"{_fmt(row.get('mean_drone_distance'))} & {_fmt(row.get('mean_physical_rendezvous_count'))} & {_fmt(row.get('mean_parcel_reload_count'))} & "
-            f"{_fmt(row.get('mean_battery_swap_count'))} & {_fmt(row.get('mean_synchronization_waiting_minutes'))} \\\\"
+            f"{row['method']} & {row['valid_runs']}/720 & {_fmt(row.get('mean_cpu_time_seconds'),2)} & {_fmt(row.get('mean_high_priority_tardiness'))} & "
+            f"{_fmt(row.get('mean_mean_high_priority_delivery_time'))} & "
+            f"{_fmt(100.0 * row['mean_high_priority_on_time_rate'],2) if row.get('mean_high_priority_on_time_rate') is not None else '--'} & "
+            f"{_fmt(100.0 * row['mean_drone_share'],2) if row.get('mean_drone_share') is not None else '--'} & {_fmt(row.get('mean_truck_distance'))} & "
+            f"{_fmt(row.get('mean_drone_distance'))} & {_fmt(row.get('mean_drone_sorties'))} & {_fmt(row.get('mean_physical_rendezvous_count'))} & "
+            f"{_fmt(row.get('mean_synchronization_waiting_minutes'))} \\\\"
         )
-    op_lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    op_lines += [
+        r"\bottomrule", r"\end{tabular}",
+        r"\begin{minipage}{\textwidth}\footnotesize HPT is total high-priority tardiness. On-time rates are post-solution diagnostics, not objective terms. Full priority-class tardiness, active drones, distances, sortie types, reloads, swaps, synchronization handling, and waiting are in \texttt{all\_methods\_operational\_indicators.csv}. M2 averages use its 487 valid runs.\end{minipage}",
+        r"\end{table}",
+    ]
     (OUTPUT / "table8_all_methods.tex").write_text("\n".join(op_lines) + "\n", encoding="utf-8")
 
-    ablation = [row for row in comparisons if row["size"] == "All"]
+    ablation = comparisons
     abl_lines = [
-        r"\begin{table}[htbp]", r"\centering", r"\caption{Matched ablation comparisons with M5}",
-        r"\label{tab:m5_ablation_comparison}", r"\small", r"\begin{tabular}{lrrrrrr}", r"\toprule",
-        "Comparator & Pairs & M5 wins & Comparator wins & Ties & Median improvement (%) & Wilcoxon $p$ \\", r"\midrule",
+        r"\begin{table}[htbp]", r"\centering", r"\caption{Matched M5 ablation comparisons by problem size}",
+        r"\label{tab:m5_ablation_comparison}", r"\scriptsize", r"\setlength{\tabcolsep}{3pt}", r"\begin{tabular}{lllrrrrrrlrl}", r"\toprule",
+        r"Ablation & Size & Pairs & M5 wins & Ablation wins & Ties & Mean $\Delta Z$ & Mean improvement (\%) & Median improvement (\%) & Wilcoxon $p$ & $r_{rb}$ & CPU M5/ablation (s) \\", r"\midrule",
     ]
     for row in ablation:
         comparator = row["comparison"].replace("M5_vs_", "")
+        pvalue = row.get("wilcoxon_p")
+        p_text = "--" if pvalue is None else (r"$<0.001$" if pvalue < 0.001 else _fmt(pvalue, 3))
         abl_lines.append(
-            f"{comparator} & {row['valid_matched_pairs']} & {row['M5_wins']} & {row[f'{comparator}_wins']} & {row['ties']} & "
-            f"{_fmt(row['median_improvement_M5_percent'])} & {_fmt(row['wilcoxon_p'],5)} \\\\"
+            f"{comparator} & {row['size']} & {row['valid_matched_pairs']}/{row['expected_pairs']} & {row['M5_wins']} & {row[f'{comparator}_wins']} & {row['ties']} & "
+            f"{_fmt(row['mean_objective_difference_ablation_minus_M5'])} & {_fmt(row['mean_improvement_M5_percent'])} & "
+            f"{_fmt(row['median_improvement_M5_percent'])} & {p_text} & {_fmt(row['paired_rank_biserial_effect_M5_favorable_positive'],3)} & "
+            f"{_fmt(row['mean_cpu_M5_seconds'],2)}/{_fmt(row[f'mean_cpu_{comparator}_seconds'],2)} \\\\"
         )
-    abl_lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    abl_lines += [
+        r"\bottomrule", r"\end{tabular}", r"\end{table}",
+        r"\noindent\footnotesize $\Delta Z=Z_{\mathrm{ablation}}-Z_{\mathrm{M5}}$; positive values favor M5. Improvement is $100(Z_{\mathrm{ablation}}-Z_{\mathrm{M5}})/Z_{\mathrm{ablation}}$; positive values favor M5. Wilcoxon tests are two-sided; positive $r_{rb}$ favors M5. Pairs are matched valid runs; invalid or unavailable pairs are reported separately in the accompanying CSV.",
+    ]
     (OUTPUT / "ablation_comparison.tex").write_text("\n".join(abl_lines) + "\n", encoding="utf-8")
 
 
@@ -1398,15 +1445,44 @@ def summarize_outputs() -> dict[str, Any]:
     if len(unique_keys) != EXPECTED_NEW_RUNS:
         raise RuntimeError("New method records are not unique by method-instance")
     validation = _summary_outputs()
+    progress = json.loads(PROGRESS_PATH.read_text(encoding="utf-8"))
+    progress["status"] = "COMPLETED"
+    progress["completed"] = EXPECTED_NEW_RUNS
+    progress["expected"] = EXPECTED_NEW_RUNS
+    progress["fraction_complete"] = 1.0
+    progress["by_method"] = {method: sum(row["method"] == method for row in new_rows) for method in METHODS}
+    progress["duplicate_method_instance_keys"] = 0
+    progress["updated_utc"] = _now()
+    _atomic_json(PROGRESS_PATH, progress)
     manifest = json.loads(RUN_MANIFEST_PATH.read_text(encoding="utf-8"))
     manifest["status"] = "COMPLETED"
     manifest["completed_utc"] = _now()
     manifest["observed_new_records"] = len(new_rows)
+    manifest["observed_unique_method_instance_keys"] = len(unique_keys)
+    manifest["duplicate_method_instance_keys"] = 0
+    manifest["controlling_manuscript"] = {
+        "file": "Drone_paper (9).pdf",
+        "sha256": "EF3AE96764DB89A44CA71EE4BF3579B846A04B366F265D9C2DE41FE13F1A3247",
+    }
+    start_events = []
+    if PROGRESS_LOG.exists():
+        for line in PROGRESS_LOG.read_text(encoding="utf-8").splitlines():
+            if "FULL start completed=" in line:
+                timestamp, message = line.split(" ", 1)
+                checkpoint = int(message.rsplit("=", 1)[1].split("/", 1)[0])
+                start_events.append({"utc": timestamp, "completed_at_start": checkpoint})
+    manifest["full_run_start_events"] = start_events
+    manifest["full_run_started_utc"] = start_events[0]["utc"] if start_events else manifest.get("full_run_started_utc")
+    manifest["resume_and_integrity_note"] = (
+        "Execution resumed from durable per-record checkpoints. One additional restart invocation was interrupted "
+        "during monitoring; the final integrity scan verified 2,160 unique method-instance records and no duplicates."
+    )
+    manifest["summary_generator_sha256"] = _sha256_file(Path(__file__).resolve())
     manifest["validation_summary"] = validation
     _atomic_json(RUN_MANIFEST_PATH, manifest)
+    _write_readme()
     _write_source_manifest()
     _write_artifact_hash_manifest()
-    _write_readme()
     return validation
 
 

@@ -1,0 +1,108 @@
+{
+  "M2_failure_treatment": "A constructive benchmark failure is retained and not replaced; it is not treated as a software gate failure if the result is well-formed and architecture-valid.",
+  "M2_infeasible_constructive_outcomes": [
+    {
+      "feasibility_errors": [
+        {
+          "code": "SHIFT",
+          "message": "Truck 1 exceeds shift",
+          "node": 1,
+          "severity": "ERROR",
+          "vehicle": "truck"
+        },
+        {
+          "code": "SHIFT",
+          "message": "Truck 2 exceeds shift",
+          "node": 2,
+          "severity": "ERROR",
+          "vehicle": "truck"
+        }
+      ],
+      "instance_id": "S0061_R09"
+    },
+    {
+      "feasibility_errors": [
+        {
+          "code": "SHIFT",
+          "message": "Truck 3 exceeds shift",
+          "node": 3,
+          "severity": "ERROR",
+          "vehicle": "truck"
+        }
+      ],
+      "instance_id": "S0072_R02"
+    }
+  ],
+  "M5_truck_based_rendezvous_opportunity_instances": [
+    "S0003_R04",
+    "S0016_R02",
+    "S0024_R03",
+    "S0037_R07",
+    "S0048_R03",
+    "S0050_R01",
+    "S0061_R09",
+    "S0072_R02"
+  ],
+  "M6_M7_initial_backbone_seed_flags_passed": true,
+  "category_coverage": {
+    "all_sizes": true,
+    "drone_fleets_1_2_3": true,
+    "eligibility_low_and_high": true,
+    "spatial_uniform_and_clustered": true,
+    "truck_based_rendezvous_opportunity": true
+  },
+  "diagnostic_execution_commit": "c03cc5e5ac547b2bcc170267501f7badd1e047be",
+  "diagnostic_execution_run_ids": [
+    "e0e8ee5183aa362e3427b59efd391be5e5af04caecfc751fc30e8f3ab2cfbe8c"
+  ],
+  "diagnostic_results_reused_from_checkpoint": true,
+  "diagnostic_runs_completed": 24,
+  "diagnostic_runs_expected": 24,
+  "eligibility_range": [
+    0.25,
+    0.75
+  ],
+  "fleet_sizes": [
+    1,
+    2,
+    3
+  ],
+  "frozen_artifact_hashes_passed": true,
+  "full_2160_runs_started": false,
+  "gate_evaluation_commit": "12cf6e08305e8cd5d2c6a0e078274b14bdaeef27",
+  "gate_passed": true,
+  "method_counts": {
+    "M2": 8,
+    "M6": 8,
+    "M7": 8
+  },
+  "method_valid_counts": {
+    "M2": 6,
+    "M6": 8,
+    "M7": 8
+  },
+  "objective_components_consistent": true,
+  "objective_reference_note": "227 old M3/M4/M5 objectives differ on corrected re-evaluation; comparisons will use the read-only corrected references while immutable archived records remain untouched.",
+  "sample_instances": [
+    "S0003_R04",
+    "S0016_R02",
+    "S0024_R03",
+    "S0037_R07",
+    "S0048_R03",
+    "S0050_R01",
+    "S0061_R09",
+    "S0072_R02"
+  ],
+  "sample_sizes": [
+    15,
+    50,
+    75,
+    100
+  ],
+  "software_exceptions": 0,
+  "spatial_patterns": [
+    "clustered",
+    "uniform"
+  ],
+  "status": "PASS_WITH_RECORDED_METHOD_FAILURES"
+}

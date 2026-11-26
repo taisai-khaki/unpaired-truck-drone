@@ -1,0 +1,287 @@
+{
+  "branch": "codex/utdrp-latest",
+  "completed_utc": "2026-11-26T12:20:30.595897+00:00",
+  "controlling_manuscript": {
+    "file": "Drone_paper (9).pdf",
+    "sha256": "EF3AE96764DB89A44CA71EE4BF3579B846A04B366F265D9C2DE41FE13F1A3247"
+  },
+  "created_utc": "2026-11-25T23:06:33.321961+00:00",
+  "design": {
+    "classes": 72,
+    "instances_by_size": {
+      "100": 190,
+      "15": 230,
+      "50": 210,
+      "75": 90
+    },
+    "replications_per_class": 10,
+    "total_instances": 720
+  },
+  "duplicate_method_instance_keys": 0,
+  "environment": {
+    "available_pulp_solvers": [
+      "PULP_CBC_CMD"
+    ],
+    "cbc_path": "C:\\Users\\L03128674\\AppData\\Roaming\\Python\\Python314\\site-packages\\pulp\\apis\\../solverdir/cbc/win/i64/cbc.exe",
+    "packages": {
+      "PyYAML": "6.0.3",
+      "numpy": "2.4.3",
+      "pulp": "3.3.0",
+      "scipy": "1.17.1"
+    },
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "exact_milp_evidence": {
+    "certified_optima": 1,
+    "exact_cases": 7,
+    "new_exact_solve_started": false,
+    "reused_from": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\final_submission_evidence_audit_20261117",
+    "solver": "CBC 2.10.3; prior per-instance 120-second audit logs retained"
+  },
+  "execution_commit": "12cf6e08305e8cd5d2c6a0e078274b14bdaeef27",
+  "expected_records": 2160,
+  "frozen_artifact_verification": {
+    "M5_reference_records": 720,
+    "all_input_and_backbone_hashes_match": true,
+    "frozen_artifact_manifest": {
+      "changed_files": [],
+      "manifest_entries": 5782,
+      "missing_files": [],
+      "passed": true
+    },
+    "inputs": 720,
+    "size_counts": {
+      "100": 190,
+      "15": 230,
+      "50": 210,
+      "75": 90
+    }
+  },
+  "frozen_input_dir": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\full_m3_m4_m5_alns_720_frozen_20261106",
+  "frozen_output_dir": "C:\\Users\\L03128674\\projects\\utdrp_priority_sensitive_unpaired_truck_drone\\outputs\\final_m3_m4_m5_alns_720_semantics_corrected_20261113",
+  "frozen_output_execution_commit": "8abdc6b7d9f82a7dc630468e4f108e48f2246e84",
+  "full_completed_at_start": 2125,
+  "full_expected_records": 2160,
+  "full_run_completed_utc": "2026-11-26T11:39:35.732092+00:00",
+  "full_run_elapsed_seconds_last_process": 30928.196640100097,
+  "full_run_start_events": [
+    {
+      "completed_at_start": 0,
+      "utc": "2026-11-25T23:20:16.510151+00:00"
+    },
+    {
+      "completed_at_start": 1712,
+      "utc": "2026-11-26T03:04:07.828780+00:00"
+    },
+    {
+      "completed_at_start": 2125,
+      "utc": "2026-11-26T10:52:28.913961+00:00"
+    }
+  ],
+  "full_run_started_utc": "2026-11-25T23:20:16.510151+00:00",
+  "input_manifest_sha256": "d2696d12986b71e8a2ca68aabd09dea5076095d6fb74511849b8823abab47884",
+  "methods": {
+    "M2": "simple_drone",
+    "M6": "nils_no_local_search",
+    "M7": "nils_no_perturbation"
+  },
+  "observed_new_records": 2160,
+  "observed_unique_method_instance_keys": 2160,
+  "preflight_diagnostic_provenance": {
+    "execution_commit": "c03cc5e5ac547b2bcc170267501f7badd1e047be",
+    "records": 24,
+    "reused_after_gate_reporting_fix": true,
+    "run_id": "e0e8ee5183aa362e3427b59efd391be5e5af04caecfc751fc30e8f3ab2cfbe8c",
+    "source_code_sha256": "aa92267d3c4722651a25930cdf41da00c54c945d6e52656316c6fcca31105eb9"
+  },
+  "preflight_gate": {
+    "M2_failure_treatment": "A constructive benchmark failure is retained and not replaced; it is not treated as a software gate failure if the result is well-formed and architecture-valid.",
+    "M2_infeasible_constructive_outcomes": [
+      {
+        "feasibility_errors": [
+          {
+            "code": "SHIFT",
+            "message": "Truck 1 exceeds shift",
+            "node": 1,
+            "severity": "ERROR",
+            "vehicle": "truck"
+          },
+          {
+            "code": "SHIFT",
+            "message": "Truck 2 exceeds shift",
+            "node": 2,
+            "severity": "ERROR",
+            "vehicle": "truck"
+          }
+        ],
+        "instance_id": "S0061_R09"
+      },
+      {
+        "feasibility_errors": [
+          {
+            "code": "SHIFT",
+            "message": "Truck 3 exceeds shift",
+            "node": 3,
+            "severity": "ERROR",
+            "vehicle": "truck"
+          }
+        ],
+        "instance_id": "S0072_R02"
+      }
+    ],
+    "M5_truck_based_rendezvous_opportunity_instances": [
+      "S0003_R04",
+      "S0016_R02",
+      "S0024_R03",
+      "S0037_R07",
+      "S0048_R03",
+      "S0050_R01",
+      "S0061_R09",
+      "S0072_R02"
+    ],
+    "M6_M7_initial_backbone_seed_flags_passed": true,
+    "category_coverage": {
+      "all_sizes": true,
+      "drone_fleets_1_2_3": true,
+      "eligibility_low_and_high": true,
+      "spatial_uniform_and_clustered": true,
+      "truck_based_rendezvous_opportunity": true
+    },
+    "diagnostic_execution_commit": "c03cc5e5ac547b2bcc170267501f7badd1e047be",
+    "diagnostic_execution_run_ids": [
+      "e0e8ee5183aa362e3427b59efd391be5e5af04caecfc751fc30e8f3ab2cfbe8c"
+    ],
+    "diagnostic_results_reused_from_checkpoint": true,
+    "diagnostic_runs_completed": 24,
+    "diagnostic_runs_expected": 24,
+    "eligibility_range": [
+      0.25,
+      0.75
+    ],
+    "fleet_sizes": [
+      1,
+      2,
+      3
+    ],
+    "frozen_artifact_hashes_passed": true,
+    "full_2160_runs_started": false,
+    "gate_evaluation_commit": "12cf6e08305e8cd5d2c6a0e078274b14bdaeef27",
+    "gate_passed": true,
+    "method_counts": {
+      "M2": 8,
+      "M6": 8,
+      "M7": 8
+    },
+    "method_valid_counts": {
+      "M2": 6,
+      "M6": 8,
+      "M7": 8
+    },
+    "objective_components_consistent": true,
+    "objective_reference_note": "227 old M3/M4/M5 objectives differ on corrected re-evaluation; comparisons will use the read-only corrected references while immutable archived records remain untouched.",
+    "sample_instances": [
+      "S0003_R04",
+      "S0016_R02",
+      "S0024_R03",
+      "S0037_R07",
+      "S0048_R03",
+      "S0050_R01",
+      "S0061_R09",
+      "S0072_R02"
+    ],
+    "sample_sizes": [
+      15,
+      50,
+      75,
+      100
+    ],
+    "software_exceptions": 0,
+    "spatial_patterns": [
+      "clustered",
+      "uniform"
+    ],
+    "status": "PASS_WITH_RECORDED_METHOD_FAILURES"
+  },
+  "remote_origin": "https://github.com/taisai-khaki/unpaired-truck-drone.git",
+  "resume_and_integrity_note": "Execution resumed from durable per-record checkpoints. One additional restart invocation was interrupted during monitoring; the final integrity scan verified 2,160 unique method-instance records and no duplicates.",
+  "run_id": "7671b9ab1e025bc17e41603593cd8f5f92dc4810ad6f56a2f77ed68032607e7f",
+  "schema_version": 1,
+  "settings": {
+    "M1_M3_M4_M5_M8_references": "Read-only corrected evaluator revalidation from the 20261117 audit; original frozen outputs are not modified.",
+    "battery_slack_ratio": 0.1,
+    "heuristic_seed": 2026,
+    "max_displacement_candidates": 100,
+    "max_no_improve": 8,
+    "max_outer_iter": 25,
+    "max_repair_candidates": 100,
+    "nominal_time_limit_seconds": 120,
+    "objective_and_validator": "Current readiness-based evaluator; common feasibility validator; M5 architecture validator."
+  },
+  "source_code_sha256": "bf9bc5c23b26f0adc8600670e5fd73ee72e89fa132264177e1217f67f6fa80e5",
+  "status": "COMPLETED",
+  "summary_generator_sha256": "8d4553c71189b7039b50163b3746a6058ad90f8563ac811278608ce0c9f38548",
+  "tracked_dirty_at_execution": false,
+  "tracked_worktree_clean_at_execution": true,
+  "validation_summary": {
+    "created_utc": "2026-11-26T12:20:28.617483+00:00",
+    "existing_reference_methods": {
+      "M1": 720,
+      "M3": 720,
+      "M4": 720,
+      "M5": 720,
+      "M8": 720
+    },
+    "expected_new_records": 2160,
+    "failures_retained_in_results": true,
+    "invalid_counts_by_size": {
+      "M2": {
+        "100": 188,
+        "15": 0,
+        "50": 9,
+        "75": 36
+      },
+      "M6": {
+        "100": 0,
+        "15": 0,
+        "50": 0,
+        "75": 0
+      },
+      "M7": {
+        "100": 0,
+        "15": 0,
+        "50": 0,
+        "75": 0
+      }
+    },
+    "invalid_objectives_excluded_from_averages": true,
+    "method_validation": {
+      "M2": {
+        "architecture_invalid": 0,
+        "infeasible": 233,
+        "objective_inconsistencies": 0,
+        "records": 720,
+        "run_exceptions": 0,
+        "valid": 487
+      },
+      "M6": {
+        "architecture_invalid": 0,
+        "infeasible": 0,
+        "objective_inconsistencies": 0,
+        "records": 720,
+        "run_exceptions": 0,
+        "valid": 720
+      },
+      "M7": {
+        "architecture_invalid": 0,
+        "infeasible": 0,
+        "objective_inconsistencies": 0,
+        "records": 720,
+        "run_exceptions": 0,
+        "valid": 720
+      }
+    },
+    "observed_new_records": 2160,
+    "strict_feasibility_and_architecture_required_for_objective_averages": true
+  }
+}
